@@ -1,0 +1,1458 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#4338CA">
+    <meta name="description" content="PontoCerto - Controle de jornada de trabalho inteligente">
+
+
+
+
+
+    <title>PontoCerto</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Sora:wght@400;600;700;800&display=swap">
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
+        body { margin:0; padding:0; overscroll-behavior:none; font-family:'Sora',sans-serif; }
+        .mono { font-family:'JetBrains Mono',monospace; }
+        .no-sb::-webkit-scrollbar { display:none; }
+        .no-sb { -ms-overflow-style:none; scrollbar-width:none; }
+        .cal-day { transition:all .15s; cursor:pointer; min-height:40px; }
+        .cal-day:active { transform:scale(.9); }
+        .cal-n { background:linear-gradient(145deg,#bfdbfe,#93c5fd); color:#1e3a8a; }
+        .cal-e { background:linear-gradient(145deg,#fef08a,#fde047); color:#713f12; }
+        .cal-b { background:linear-gradient(145deg,#e9d5ff,#d8b4fe); color:#581c87; }
+        .cal-t { box-shadow:0 0 0 2.5px #3b82f6!important; font-weight:800; }
+        .dpill { display:flex; align-items:center; justify-content:center; height:44px; border-radius:12px; font-weight:700; font-size:13px; border:2px solid transparent; transition:all .15s; cursor:pointer; user-select:none; flex:1; min-width:0; }
+        .dpill:active { transform:scale(.88); }
+        .dpill-off { background:#f1f5f9; color:#94a3b8; border-color:#e2e8f0; }
+        .dpill-on { background:#f0fdf4; color:#15803d; border-color:#86efac; }
+        .dpill-sel { background:linear-gradient(135deg,#3b82f6,#6366f1); color:#fff; box-shadow:0 4px 14px rgba(59,130,246,.4); }
+        .tog-track { width:42px; height:24px; border-radius:12px; transition:background .2s; cursor:pointer; position:relative; flex-shrink:0; }
+        .tog-thumb { width:18px; height:18px; border-radius:50%; background:white; box-shadow:0 1px 4px rgba(0,0,0,.25); position:absolute; top:3px; transition:left .2s; pointer-events:none; }
+        .tsel { appearance:none; background:none; font-family:'JetBrains Mono',monospace; font-weight:700; text-align:center; cursor:pointer; }
+        @keyframes pg { 0%,100%{box-shadow:0 0 0 0 rgba(34,197,94,.4)} 50%{box-shadow:0 0 0 8px rgba(34,197,94,0)} }
+        .pulse-w { animation:pg 2s infinite; }
+        .tab-a { box-shadow:0 4px 12px rgba(59,130,246,.35); }
+        .mc { transition:transform .2s; }
+        .mc:hover { transform:translateY(-2px); }
+        .progress-ring-circle { transition:stroke-dashoffset .6s cubic-bezier(.4,0,.2,1), stroke .3s; transform:rotate(-90deg); transform-origin:50% 50%; }
+        @keyframes ring-pulse { 0%,100%{filter:drop-shadow(0 0 4px rgba(59,130,246,.3))} 50%{filter:drop-shadow(0 0 12px rgba(59,130,246,.6))} }
+        .ring-active { animation:ring-pulse 2s infinite; }
+        .glass { backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); }
+        .glass-light { background:rgba(255,255,255,.7); border:1px solid rgba(255,255,255,.3); }
+        .glass-dark { background:rgba(30,41,59,.7); border:1px solid rgba(255,255,255,.1); }
+        @keyframes count-up { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+        .count-anim { animation:count-up .4s ease-out; }
+        .timeline-bar { height:8px; border-radius:4px; overflow:hidden; position:relative; }
+        .timeline-segment { position:absolute; top:0; height:100%; border-radius:4px; transition:width .4s ease-out; }
+        .stat-card { transition:all .2s; }
+        .stat-card:hover { transform:translateY(-2px); box-shadow:0 8px 25px rgba(0,0,0,.1); }
+        .mini-bar { transition:height .5s cubic-bezier(.4,0,.2,1); border-radius:4px 4px 0 0; }
+        @keyframes badge-pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.1)} }
+        .badge-extra { animation:badge-pulse 1.5s infinite; }
+        .grad-text { background:linear-gradient(135deg,#3b82f6,#8b5cf6); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+        .skip-link { position:absolute; top:-40px; left:0; background:#3B82F6; color:white; padding:8px; z-index:100; }
+        .skip-link:focus { top:0; }
+    </style>
+
+
+
+    <!-- Service Worker -->
+    <script>
+        window.addEventListener('load', () => {
+                .then(r => console.log('[PontoCerto] SW:', r.scope))
+                .catch(e => console.warn('[PontoCerto] SW:', e));
+        });
+    }
+    </script>
+
+    <script>
+            window.addEventListener('load', function () {
+                    .then(function (r) { console.log('[PontoCerto] SW:', r.scope); })
+                    .catch(function (e) { console.warn('[PontoCerto] SW erro:', e); });
+            });
+        }
+    </script>
+
+    <!-- PWA -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="PontoCerto">
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16x16.png">
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function () {
+                navigator.serviceWorker.register('sw.js')
+                    .then(function (r) { console.log('[PontoCerto] SW:', r.scope); })
+                    .catch(function (e) { console.warn('[PontoCerto] SW:', e); });
+            });
+        }
+    </script>
+</head>
+<body>
+    <a href="#main-content" class="skip-link">Pular para conteúdo principal</a>
+    <div id="root"></div>
+
+    <script type="text/babel">
+    const { useState, useEffect, useRef, useMemo, useCallback } = React;
+
+    /* ─── Error Boundary ─── */
+    class ErrorBoundary extends React.Component {
+        constructor(p) { super(p); this.state = { hasError: false, error: null }; }
+        static getDerivedStateFromError(e) { return { hasError: true, error: e }; }
+        render() {
+            if (this.state.hasError) return (
+                <div className="p-4 bg-red-100 text-red-800 rounded-xl">
+                    <h2 className="font-bold mb-2">Algo deu errado</h2>
+                    <p className="text-sm">{this.state.error?.message}</p>
+                    <button onClick={() => window.location.reload()} className="mt-3 px-4 py-2 bg-red-500 text-white rounded-xl">Recarregar</button>
+                </div>
+            );
+            return this.props.children;
+        }
+    }
+
+    /* ─── Icons ─── */
+    const Icon = ({ name, className = "w-5 h-5" }) => {
+        const d = {
+            clock: <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></svg>,
+            play: <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3" /></svg>,
+            stop: <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" /></svg>,
+            cal: <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>,
+            file: <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /></svg>,
+            user: <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>,
+            sun: <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5" /><line x1="12" y1="1" x2="12" y2="3" /><line x1="12" y1="21" x2="12" y2="23" /><line x1="4.22" y1="4.22" x2="5.64" y2="5.64" /><line x1="18.36" y1="18.36" x2="19.78" y2="19.78" /><line x1="1" y1="12" x2="3" y2="12" /><line x1="21" y1="12" x2="23" y2="12" /><line x1="4.22" y1="19.78" x2="5.64" y2="18.36" /><line x1="18.36" y1="5.64" x2="19.78" y2="4.22" /></svg>,
+            moon: <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" /></svg>,
+            download: <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>,
+            edit: <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>,
+            gear: <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" /></svg>,
+            chevL: <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6" /></svg>,
+            chevR: <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6" /></svg>,
+            trash: <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14H6L5 6" /><path d="M10 11v6M14 11v6M9 6V4h6v2" /></svg>,
+            plus: <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>,
+            trend: <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18" /><polyline points="17 6 23 6 23 12" /></svg>,
+            location: <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" /></svg>,
+            bank: <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M3 21h18M3 10h18M5 6l7-3 7 3M4 10v11M20 10v11M8 14v3M12 14v3M16 14v3" /></svg>,
+        };
+        return d[name] || null;
+    };
+
+    /* ─── Constants ─── */
+    const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+    const DLABEL = { monday: 'Segunda', tuesday: 'Terça', wednesday: 'Quarta', thursday: 'Quinta', friday: 'Sexta', saturday: 'Sábado', sunday: 'Domingo' };
+    const DSHORT = { monday: 'Seg', tuesday: 'Ter', wednesday: 'Qua', thursday: 'Qui', friday: 'Sex', saturday: 'Sáb', sunday: 'Dom' };
+    const JS2D = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    const HH = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
+    const MM = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'));
+    const YEARS = Array.from({ length: 20 }, (_, i) => new Date().getFullYear() - 5 + i);
+    const MONTHS = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, '0'));
+    const MNAMES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+
+    const DEF_SCH = {
+        monday: { active: true, start: '07:00', end: '17:00', lunch: 60 },
+        tuesday: { active: true, start: '07:00', end: '17:00', lunch: 60 },
+        wednesday: { active: true, start: '07:00', end: '17:00', lunch: 60 },
+        thursday: { active: true, start: '07:00', end: '17:00', lunch: 60 },
+        friday: { active: true, start: '07:00', end: '17:00', lunch: 60 },
+        saturday: { active: false, start: '07:00', end: '12:00', lunch: 0 },
+        sunday: { active: false, start: '07:00', end: '12:00', lunch: 0 },
+    };
+
+    /* ─── Helpers ─── */
+    /* FIX: t2m com validação para evitar crash com valores inválidos */
+    const t2m = s => { if (!s || typeof s !== 'string' || !s.includes(':')) return 0; const [h, m] = s.split(':').map(Number); if (isNaN(h) || isNaN(m)) return 0; return h * 60 + m; };
+    /* FIX: localDay corrige bug de timezone (UTC vs local) */
+    const localDay = date => { const d = new Date(date); return new Date(d.getTime() + d.getTimezoneOffset() * -60000).getDay(); };
+    const fmtMin = total => { const neg = total < 0; const abs = Math.abs(Math.round(total)); const h = Math.floor(abs / 60); const m = abs % 60; return `${neg ? '-' : ''}${h}h${m > 0 ? String(m).padStart(2, '0') + 'm' : ''}`; };
+    const validateTimeOrder = (s, e) => t2m(e) > t2m(s);
+    const safeLS = {
+        get: k => { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } },
+        set: (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { return false; } }
+    };
+
+    /* ─── ProgressRing ─── */
+    const ProgressRing = ({ percent, size = 120, stroke = 8, children, working }) => {
+        const r = (size - stroke) / 2;
+        const circ = 2 * Math.PI * r;
+        const p = Math.min(Math.max(percent, 0), 100);
+        const offset = circ - (p / 100) * circ;
+        const color = p >= 100 ? '#22c55e' : p >= 75 ? '#3b82f6' : p >= 50 ? '#eab308' : '#ef4444';
+        return (
+            <div className="relative inline-flex items-center justify-center">
+                <svg width={size} height={size} className={working ? 'ring-active' : ''}>
+                    <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="currentColor" strokeWidth={stroke} className="opacity-10" />
+                    <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={color} strokeWidth={stroke} strokeDasharray={circ} strokeDashoffset={offset} strokeLinecap="round" className="progress-ring-circle" />
+                </svg>
+                <div className="absolute inset-0 flex flex-col items-center justify-center">{children}</div>
+            </div>
+        );
+    };
+
+    /* ─── StatCard ─── */
+    const StatCard = ({ label, value, icon, gradient, extra }) => (
+        <div className={`stat-card p-3 rounded-2xl text-center text-white bg-gradient-to-br ${gradient} shadow-lg`}>
+            <div className="flex items-center justify-center gap-1 mb-1 opacity-80">
+                {icon && <span className="text-sm">{icon}</span>}
+                <span className="text-xs font-semibold">{label}</span>
+            </div>
+            <p className="mono font-extrabold text-xl count-anim">{value}</p>
+            {extra && <p className="text-xs opacity-70 mt-0.5">{extra}</p>}
+        </div>
+    );
+
+    /* ─── WeekBarChart ─── */
+    const WeekBarChart = ({ calcDay, dark }) => {
+        const ref = React.useRef(null);
+        const inst = React.useRef(null);
+
+        const data = useMemo(() => {
+            const today = new Date();
+            const dow = today.getDay();
+            const monday = new Date(today);
+            monday.setDate(today.getDate() - ((dow + 6) % 7));
+            return Array.from({ length: 7 }, (_, i) => {
+                const d = new Date(monday);
+                d.setDate(monday.getDate() + i);
+                const s = calcDay(d);
+                const isFuture = d > today;
+                return {
+                    day: DSHORT[DAYS[i]],
+                    normal:   isFuture ? 0 : Math.round(s.workMin / 60 * 100) / 100,
+                    extra:    isFuture ? 0 : Math.round((s.extraPaidMin + s.extraMin) / 60 * 100) / 100,
+                    banco:    isFuture ? 0 : Math.round(s.bankMin / 60 * 100) / 100,
+                    expected: Math.round(s.expMin / 60 * 100) / 100,
+                    isToday:  d.toDateString() === today.toDateString(),
+                };
+            });
+        }, [calcDay]);
+
+        useEffect(() => {
+            if (!ref.current) return;
+            if (inst.current) { try { inst.current.destroy(); } catch(e) {} inst.current = null; }
+            const ctx = ref.current.getContext('2d');
+            if (!ctx) return;
+            const gridColor  = dark ? 'rgba(255,255,255,.08)' : 'rgba(0,0,0,.07)';
+            const tickColor  = dark ? 'rgba(255,255,255,.5)'  : 'rgba(0,0,0,.5)';
+            inst.current = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: data.map(d => d.day),
+                    datasets: [
+                        {
+                            label: 'Esperado',
+                            data: data.map(d => d.expected),
+                            type: 'line',
+                            borderColor: dark ? 'rgba(148,163,184,.6)' : 'rgba(100,116,139,.5)',
+                            borderWidth: 1.5,
+                            borderDash: [4, 3],
+                            pointRadius: 0,
+                            fill: false,
+                            tension: 0,
+                            order: 0,
+                        },
+                        {
+                            label: 'Normal',
+                            data: data.map(d => d.normal),
+                            backgroundColor: data.map(d => d.isToday ? 'rgba(59,130,246,.9)' : 'rgba(59,130,246,.65)'),
+                            borderRadius: 4,
+                            borderSkipped: false,
+                            stack: 'horas',
+                            order: 1,
+                        },
+                        {
+                            label: 'Extra paga',
+                            data: data.map(d => d.extra),
+                            backgroundColor: data.map(d => d.isToday ? 'rgba(245,158,11,.95)' : 'rgba(245,158,11,.75)'),
+                            borderRadius: 4,
+                            borderSkipped: false,
+                            stack: 'horas',
+                            order: 2,
+                        },
+                        {
+                            label: 'Banco',
+                            data: data.map(d => d.banco),
+                            backgroundColor: data.map(d => d.isToday ? 'rgba(139,92,246,.95)' : 'rgba(139,92,246,.7)'),
+                            borderRadius: 4,
+                            borderSkipped: false,
+                            stack: 'horas',
+                            order: 3,
+                        },
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'bottom',
+                            labels: {
+                                color: tickColor,
+                                font: { size: 10, family: 'Sora, sans-serif' },
+                                boxWidth: 10,
+                                boxHeight: 10,
+                                borderRadius: 3,
+                                padding: 10,
+                                usePointStyle: true,
+                                pointStyle: 'rectRounded',
+                                filter: item => item.text !== 'Esperado',
+                            }
+                        },
+                        tooltip: {
+                            backgroundColor: dark ? '#1e293b' : '#fff',
+                            borderColor: dark ? 'rgba(255,255,255,.1)' : 'rgba(0,0,0,.1)',
+                            borderWidth: 1,
+                            titleColor: dark ? '#f1f5f9' : '#0f172a',
+                            bodyColor: dark ? '#94a3b8' : '#475569',
+                            padding: 10,
+                            callbacks: {
+                                label: ctx => {
+                                    const v = ctx.parsed.y;
+                                    if (v <= 0) return null;
+                                    const h = Math.floor(v); const m = Math.round((v - h) * 60);
+                                    return ` ${ctx.dataset.label}: ${h}h${m > 0 ? m + 'm' : ''}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            stacked: true,
+                            grid: { display: false },
+                            ticks: {
+                                color: data.map(d => d.isToday ? (dark ? '#60a5fa' : '#3b82f6') : tickColor),
+                                font: (ctx) => ({ size: 11, weight: data[ctx.index]?.isToday ? '700' : '400', family: 'Sora, sans-serif' }),
+                            }
+                        },
+                        y: {
+                            stacked: true,
+                            beginAtZero: true,
+                            grid: { color: gridColor },
+                            border: { dash: [4, 3] },
+                            ticks: {
+                                color: tickColor,
+                                font: { size: 10, family: 'JetBrains Mono, monospace' },
+                                stepSize: 2,
+                                callback: v => v > 0 ? `${v}h` : '0',
+                                maxTicksLimit: 5,
+                            }
+                        }
+                    }
+                }
+            });
+            return () => { if (inst.current) { try { inst.current.destroy(); } catch(e) {} inst.current = null; } };
+        }, [data, dark]);
+
+        return <div className="h-44 w-full"><canvas ref={ref} /></div>;
+    };
+
+    /* ─── DayTimeline ─── */
+    const DayTimeline = ({ records, sched, dark }) => {
+        if (!records.length) return null;
+        const startMin = t2m(sched.start) - 30;
+        const endMin = t2m(sched.end) + 30;
+        const totalSpan = Math.max(endMin - startMin, 60);
+        const segments = [];
+        const sorted = [...records].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+        for (let i = 0; i < sorted.length; i++) {
+            if (sorted[i].type === 'entrada') {
+                const s = new Date(sorted[i].timestamp);
+                const e = sorted[i + 1]?.type === 'saida' ? new Date(sorted[i + 1].timestamp) : new Date();
+                const sm = s.getHours() * 60 + s.getMinutes();
+                const em = e.getHours() * 60 + e.getMinutes();
+                const isExtra = sm < t2m(sched.start) || em > t2m(sched.end);
+                segments.push({ left: Math.max(0, ((sm - startMin) / totalSpan) * 100), width: Math.max(2, ((em - sm) / totalSpan) * 100), isExtra });
+                if (sorted[i + 1]?.type === 'saida') i++;
+            }
+        }
+        return (
+            <div className="space-y-1">
+                <div className={`timeline-bar ${dark ? 'bg-gray-700' : 'bg-gray-200'}`}>
+                    {segments.map((seg, i) => <div key={i} className={`timeline-segment ${seg.isExtra ? 'bg-gradient-to-r from-yellow-400 to-amber-500' : 'bg-gradient-to-r from-blue-400 to-indigo-500'}`} style={{ left: `${seg.left}%`, width: `${seg.width}%` }} />)}
+                </div>
+                <div className="flex justify-between text-xs opacity-40 mono">
+                    <span>{sched.start}</span><span>{sched.end}</span>
+                </div>
+            </div>
+        );
+    };
+
+    /* ─── TimePicker ─── */
+    const TimePicker = ({ value, onChange, dark, bdr, label, id }) => {
+        const parts = (value || '00:00').split(':'); const hh = parts[0] || '00'; const mm = parts[1] || '00';
+        const base = `tsel py-2.5 rounded-xl border-2 ${bdr} text-sm w-full ${dark ? 'bg-gray-700 text-white' : 'bg-white text-gray-900'}`;
+        return (
+            <div>
+                {label && <label htmlFor={id} className="block text-xs font-semibold opacity-50 mb-1 text-center">{label}</label>}
+                <div className="flex items-center gap-1">
+                    <select id={id} value={hh} onChange={e => onChange(`${e.target.value}:${mm}`)} className={base}>{HH.map(h => <option key={h} value={h}>{h}</option>)}</select>
+                    <span className="font-black opacity-50 text-lg">:</span>
+                    <select value={mm} onChange={e => onChange(`${hh}:${e.target.value}`)} className={base}>{MM.map(m => <option key={m} value={m}>{m}</option>)}</select>
+                </div>
+            </div>
+        );
+    };
+
+    /* ─── DateTimePicker ─── */
+    const DateTimePicker = ({ value, onChange, dark, bdr }) => {
+        const dt = new Date(value); const year = String(dt.getFullYear()); const month = String(dt.getMonth() + 1).padStart(2, '0');
+        const day = String(dt.getDate()).padStart(2, '0'); const hh = String(dt.getHours()).padStart(2, '0'); const mm = String(dt.getMinutes()).padStart(2, '0');
+        const daysInMonth = new Date(Number(year), Number(month), 0).getDate();
+        const DAYS_ARR = Array.from({ length: daysInMonth }, (_, i) => String(i + 1).padStart(2, '0'));
+        const emit = (y, mo, d, h, mi) => { try { onChange(new Date(`${y}-${mo}-${d}T${h}:${mi}:00`).toISOString()) } catch (e) { } };
+        const sel = `tsel py-2 rounded-xl border-2 ${bdr} text-sm font-bold text-center ${dark ? 'bg-gray-700 text-white' : 'bg-white text-gray-900'}`;
+        return (
+            <div className="space-y-2">
+                <div className="flex gap-1 items-center">
+                    <select value={day} onChange={e => emit(year, month, e.target.value, hh, mm)} className={`${sel} flex-1`}>{DAYS_ARR.map(d => <option key={d} value={d}>{d}</option>)}</select>
+                    <select value={month} onChange={e => emit(year, e.target.value, day, hh, mm)} className={`${sel} flex-1`}>{MONTHS.map((m, i) => <option key={m} value={m}>{MNAMES[i]}</option>)}</select>
+                    <select value={year} onChange={e => emit(e.target.value, month, day, hh, mm)} className={`${sel} flex-1`}>{YEARS.map(y => <option key={y} value={String(y)}>{y}</option>)}</select>
+                </div>
+                <div className="flex items-center gap-1">
+                    <select value={hh} onChange={e => emit(year, month, day, e.target.value, mm)} className={`${sel} flex-1`}>{HH.map(h => <option key={h} value={h}>{h}</option>)}</select>
+                    <span className="font-black opacity-50 text-lg">:</span>
+                    <select value={mm} onChange={e => emit(year, month, day, hh, e.target.value)} className={`${sel} flex-1`}>{MM.map(m => <option key={m} value={m}>{m}</option>)}</select>
+                </div>
+            </div>
+        );
+    };
+
+    /* ─── HoursChart ─── */
+    /* FIX: destruição segura do canvas com try/catch */
+    const HoursChart = ({ data, dark }) => {
+        const ref = useRef(null); const inst = useRef(null);
+        useEffect(() => {
+            if (!ref.current || !data?.length) return;
+            if (inst.current) { try { inst.current.destroy(); } catch(e) {} inst.current = null; }
+            const ctx = ref.current.getContext('2d');
+            if (!ctx) return;
+            inst.current = new Chart(ctx, { type: 'line', data: { labels: data.map(d => d.date), datasets: [{ label: 'Horas', data: data.map(d => d.hours), borderColor: '#3B82F6', backgroundColor: 'rgba(59,130,246,.1)', tension: .4, fill: true, pointBackgroundColor: '#3B82F6', pointRadius: 4 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: dark ? 'rgba(255,255,255,.1)' : 'rgba(0,0,0,.1)' }, ticks: { color: dark ? '#fff' : '#000' } }, x: { grid: { display: false }, ticks: { color: dark ? '#fff' : '#000', maxRotation: 45, minRotation: 45 } } } } });
+            return () => { if (inst.current) { try { inst.current.destroy(); } catch(e) {} inst.current = null; } };
+        }, [data, dark]);
+        return <div className="h-48 w-full"><canvas ref={ref} /></div>;
+    };
+
+    /* ══════════════ FINANCEIRO + JORNADA COMPONENT ══════════════ */
+    const FinanceiroJornada = ({ card, sub, inp, dark, bdr, sal, setSal, editSal, setEditSal, extraPay, sched, setSched, editSch, setEditSch, picked, setPicked, batch, setBatch, DAYS, DSHORT, DLABEL, t2m, fmtMin, togglePick, applyBatch, saveSch, toast, safeLS }) => {
+        const [subTab, setSubTab] = React.useState('financeiro');
+        return <div className="space-y-3">
+            {/* Sub-nav */}
+            <div className={`flex p-1 rounded-2xl gap-1 ${dark ? 'bg-gray-800' : 'bg-gray-100'}`}>
+                <button onClick={() => setSubTab('financeiro')} className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition ${subTab === 'financeiro' ? (dark ? 'bg-gray-600 text-white' : 'bg-white text-gray-900 shadow') : 'opacity-50'}`}>💰 Financeiro</button>
+                <button onClick={() => setSubTab('jornada')} className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition ${subTab === 'jornada' ? (dark ? 'bg-gray-600 text-white' : 'bg-white text-gray-900 shadow') : 'opacity-50'}`}>⚙️ Jornada</button>
+            </div>
+
+            {/* ── Financeiro ── */}
+            {subTab === 'financeiro' && <>
+                <section className={`${card} rounded-2xl shadow p-4`}>
+                    <h2 className="font-bold text-sm flex items-center gap-2 mb-4"><Icon name="trend" className="w-4 h-4" />💰 Configuração Salarial</h2>
+                    {editSal ? (<div className="space-y-3">
+                        <div><label className="text-xs font-semibold opacity-60 block mb-1">Salário Base (R$)</label><input type="number" value={sal.salary} onChange={e => setSal({ ...sal, salary: e.target.value })} placeholder="3500.00" className={`w-full p-3 rounded-xl border ${inp} text-sm mono font-bold`} /></div>
+                        <div><label className="text-xs font-semibold opacity-60 block mb-1">Carga Horária Mensal (horas)</label><input type="number" value={sal.workload} onChange={e => setSal({ ...sal, workload: e.target.value })} className={`w-full p-3 rounded-xl border ${inp} text-sm mono font-bold`} /></div>
+                        <div className="grid grid-cols-2 gap-3">
+                            <div><label className="text-xs font-semibold opacity-60 block mb-1">% Extra Dia Útil</label><input type="number" value={sal.wdPct} onChange={e => setSal({ ...sal, wdPct: e.target.value })} className={`w-full p-3 rounded-xl border ${inp} text-sm mono font-bold`} /></div>
+                            <div><label className="text-xs font-semibold opacity-60 block mb-1">% Extra Fim de Semana</label><input type="number" value={sal.wePct} onChange={e => setSal({ ...sal, wePct: e.target.value })} className={`w-full p-3 rounded-xl border ${inp} text-sm mono font-bold`} /></div>
+                        </div>
+                        <button onClick={() => { safeLS.set('pc_s', sal); setEditSal(false); toast('💰 Salário salvo!', 'success') }} className="w-full py-3 bg-green-500 text-white rounded-xl font-bold active:scale-95">✓ Salvar</button>
+                    </div>) : (<div>
+                        <div className={`p-3 rounded-xl ${sub} mb-3`}>
+                            <p className="text-sm"><span className="opacity-50">Salário:</span> <span className="mono font-bold">R$ {parseFloat(sal.salary || 0).toFixed(2)}</span></p>
+                            <p className="text-sm"><span className="opacity-50">Carga:</span> <span className="mono font-bold">{sal.workload}h/mês</span></p>
+                            <p className="text-sm"><span className="opacity-50">Extra:</span> <span className="mono font-bold">{sal.wdPct}% (útil) / {sal.wePct}% (fds)</span></p>
+                        </div>
+                        <button onClick={() => setEditSal(true)} className="px-4 py-2 bg-blue-500 text-white rounded-xl text-sm font-bold active:scale-95"><Icon name="edit" className="w-3.5 h-3.5 inline mr-1" />Editar</button>
+                    </div>)}
+                </section>
+                {extraPay && <>
+                    {/* ── Resumo de horas ── */}
+                    <section className={`${card} rounded-2xl shadow p-4`}>
+                        <h2 className="font-bold text-sm mb-3 flex items-center gap-2">⏱️ Resumo de Horas — Mês atual</h2>
+                        <div className="grid grid-cols-3 gap-2">
+                            <div className={`p-3 rounded-xl text-center ${dark ? 'bg-blue-900/40 text-blue-300' : 'bg-blue-50 text-blue-800'}`}>
+                                <p className="text-[10px] font-semibold opacity-70 uppercase tracking-wide">Trabalhadas</p>
+                                <p className="mono font-extrabold text-base mt-1">{fmtMin(extraPay.totalWorkMin)}</p>
+                                <p className="text-[10px] opacity-50 mt-0.5">jornada total</p>
+                            </div>
+                            <div className={`p-3 rounded-xl text-center ${dark ? 'bg-amber-900/40 text-amber-300' : 'bg-amber-50 text-amber-800'}`}>
+                                <p className="text-[10px] font-semibold opacity-70 uppercase tracking-wide">Extras pagas</p>
+                                <p className="mono font-extrabold text-base mt-1">{fmtMin((extraPay.wdPaidH + extraPay.wePaidH) * 60)}</p>
+                                <p className="text-[10px] opacity-50 mt-0.5">remuneradas 💰</p>
+                            </div>
+                            <div className={`p-3 rounded-xl text-center ${dark ? 'bg-purple-900/40 text-purple-300' : 'bg-purple-50 text-purple-800'}`}>
+                                <p className="text-[10px] font-semibold opacity-70 uppercase tracking-wide">Banco</p>
+                                <p className="mono font-extrabold text-base mt-1">{fmtMin(extraPay.totalBank * 60)}</p>
+                                <p className="text-[10px] opacity-50 mt-0.5">não remunerado</p>
+                            </div>
+                        </div>
+                        {/* Barra visual separando extra vs banco */}
+                        {(extraPay.wdPaidH + extraPay.wePaidH + extraPay.totalBank) > 0 && <div className="mt-3">
+                            <p className="text-xs opacity-50 mb-1">Composição das horas além da jornada</p>
+                            <div className="h-2 rounded-full overflow-hidden flex bg-gray-200">
+                                {(extraPay.wdPaidH + extraPay.wePaidH) > 0 && <div className="bg-amber-400 h-full" style={{ width: `${((extraPay.wdPaidH + extraPay.wePaidH) / (extraPay.wdPaidH + extraPay.wePaidH + extraPay.totalBank) * 100).toFixed(1)}%` }} />}
+                                {extraPay.totalBank > 0 && <div className="bg-purple-400 h-full" style={{ width: `${(extraPay.totalBank / (extraPay.wdPaidH + extraPay.wePaidH + extraPay.totalBank) * 100).toFixed(1)}%` }} />}
+                            </div>
+                            <div className="flex gap-3 mt-1.5">
+                                <span className="flex items-center gap-1 text-[10px] opacity-60"><span className="w-2 h-2 rounded-full bg-amber-400 inline-block"/>Extra paga</span>
+                                <span className="flex items-center gap-1 text-[10px] opacity-60"><span className="w-2 h-2 rounded-full bg-purple-400 inline-block"/>Banco (não pago)</span>
+                            </div>
+                        </div>}
+                    </section>
+
+                    {/* ── Extras remuneradas ── */}
+                    <section className={`${card} rounded-2xl shadow p-4`}>
+                        <h2 className="font-bold text-sm mb-3 flex items-center gap-2">💰 Horas Extras Remuneradas</h2>
+                        <div className={`p-3 rounded-xl ${sub} mb-3 flex items-center justify-between`}>
+                            <span className="text-xs opacity-50">Valor hora normal</span>
+                            <span className="mono font-bold">R$ {extraPay.hv.toFixed(2)}</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 mb-3">
+                            <div className={`p-3 rounded-xl ${dark ? 'bg-amber-900/40 text-amber-300' : 'bg-amber-50 text-amber-800'}`}>
+                                <p className="text-[10px] font-semibold opacity-70">Dias úteis ({sal.wdPct}%)</p>
+                                <p className="mono font-bold text-sm mt-1">{extraPay.wdPaidH.toFixed(1)}h</p>
+                                <p className="text-[10px] opacity-50">R$ {extraPay.hvWd.toFixed(2)}/h</p>
+                                <p className="mono font-bold mt-1">R$ {extraPay.wdT.toFixed(2)}</p>
+                            </div>
+                            <div className={`p-3 rounded-xl ${dark ? 'bg-orange-900/40 text-orange-300' : 'bg-orange-50 text-orange-800'}`}>
+                                <p className="text-[10px] font-semibold opacity-70">Fim de semana ({sal.wePct}%)</p>
+                                <p className="mono font-bold text-sm mt-1">{extraPay.wePaidH.toFixed(1)}h</p>
+                                <p className="text-[10px] opacity-50">R$ {extraPay.hvWe.toFixed(2)}/h</p>
+                                <p className="mono font-bold mt-1">R$ {extraPay.weT.toFixed(2)}</p>
+                            </div>
+                        </div>
+                        <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 text-white flex items-center justify-between shadow-lg">
+                            <div>
+                                <p className="text-xs opacity-80">Total a receber em extras</p>
+                                <p className="mono text-2xl font-extrabold">R$ {extraPay.total.toFixed(2)}</p>
+                            </div>
+                            <span className="text-3xl">💰</span>
+                        </div>
+                    </section>
+
+                    {/* ── Banco de horas ── */}
+                    <section className={`${card} rounded-2xl shadow p-4`}>
+                        <h2 className="font-bold text-sm mb-3 flex items-center gap-2">🏦 Banco de Horas <span className="text-xs font-normal opacity-50 ml-1">— não remunerado</span></h2>
+                        <div className="grid grid-cols-2 gap-2 mb-3">
+                            <div className={`p-3 rounded-xl ${dark ? 'bg-purple-900/40 text-purple-300' : 'bg-purple-50 text-purple-800'}`}>
+                                <p className="text-[10px] font-semibold opacity-70">Dias úteis</p>
+                                <p className="mono font-bold text-sm mt-1">{extraPay.wdBankH.toFixed(1)}h</p>
+                                <p className="text-[10px] opacity-50">em banco</p>
+                            </div>
+                            <div className={`p-3 rounded-xl ${dark ? 'bg-violet-900/40 text-violet-300' : 'bg-violet-50 text-violet-800'}`}>
+                                <p className="text-[10px] font-semibold opacity-70">Fim de semana</p>
+                                <p className="mono font-bold text-sm mt-1">{extraPay.weBankH.toFixed(1)}h</p>
+                                <p className="text-[10px] opacity-50">em banco</p>
+                            </div>
+                        </div>
+                        <div className={`p-4 rounded-2xl flex items-center justify-between ${dark ? 'bg-purple-900/50 border border-purple-700' : 'bg-purple-50 border border-purple-200'}`}>
+                            <div>
+                                <p className={`text-xs ${dark ? 'text-purple-400' : 'text-purple-600'} opacity-80`}>Total acumulado no banco</p>
+                                <p className={`mono text-2xl font-extrabold ${dark ? 'text-purple-300' : 'text-purple-700'}`}>{fmtMin(extraPay.totalBank * 60)}</p>
+                                <p className="text-[10px] opacity-50 mt-0.5">Não gera pagamento — use como folga</p>
+                            </div>
+                            <span className="text-3xl">🏦</span>
+                        </div>
+                    </section>
+                </>}
+            </>}
+
+            {/* ── Jornada ── */}
+            {subTab === 'jornada' && <section className={`${card} rounded-2xl shadow p-4`}>
+                <div className="flex items-center justify-between mb-4">
+                    <h2 className="font-bold text-base flex items-center gap-2"><Icon name="gear" className="w-5 h-5" />Jornada por Dia</h2>
+                    {editSch ? <button onClick={saveSch} className="px-5 py-2.5 bg-green-500 text-white rounded-xl text-sm font-bold active:scale-95 shadow-lg shadow-green-200">✓ Salvar</button>
+                        : <button onClick={() => setEditSch(true)} className="p-2.5 bg-blue-500 text-white rounded-xl active:scale-95"><Icon name="edit" className="w-4 h-4" /></button>}
+                </div>
+                {editSch ? (<div className="space-y-5">
+                    <div className={`rounded-2xl border-2 border-dashed overflow-hidden ${dark ? 'border-blue-700 bg-blue-950/30' : 'border-blue-200 bg-blue-50'}`}>
+                        <div className={`px-4 py-3 font-bold text-sm ${dark ? 'text-blue-300' : 'text-blue-700'}`}>⚡ Aplicar mesmo horário</div>
+                        <div className="px-3 pb-3 flex gap-1.5">{DAYS.map(dk => <button key={dk} onClick={() => togglePick(dk)} className={`dpill ${picked.includes(dk) ? 'dpill-sel' : sched[dk].active ? 'dpill-on' : 'dpill-off'}`}>{DSHORT[dk]}</button>)}</div>
+                        <div className="px-3 pb-3 flex gap-2 flex-wrap">
+                            <button onClick={() => setPicked(DAYS.filter(dk => sched[dk].active))} className={`px-4 py-2 rounded-xl text-xs font-bold border-2 active:scale-95 ${dark ? 'bg-gray-700 border-gray-600' : 'bg-white border-blue-200 text-blue-700'}`}>Dias ativos</button>
+                            <button onClick={() => setPicked([...DAYS])} className={`px-4 py-2 rounded-xl text-xs font-bold border-2 active:scale-95 ${dark ? 'bg-gray-700 border-gray-600' : 'bg-white border-indigo-200 text-indigo-700'}`}>Todos</button>
+                            {picked.length > 0 && <button onClick={() => setPicked([])} className={`px-4 py-2 rounded-xl text-xs font-bold border-2 active:scale-95 ${dark ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-200 text-gray-500'}`}>Limpar ({picked.length})</button>}
+                        </div>
+                        <div className={`mx-3 mb-4 p-4 rounded-2xl ${dark ? 'bg-gray-800' : 'bg-white'} shadow-sm`}>
+                            <div className="grid grid-cols-3 gap-3 mb-3">
+                                <TimePicker label="Início" value={batch.start} onChange={v => setBatch({ ...batch, start: v })} dark={dark} bdr={bdr} id="batch-start" />
+                                <TimePicker label="Fim" value={batch.end} onChange={v => setBatch({ ...batch, end: v })} dark={dark} bdr={bdr} id="batch-end" />
+                                <div><label className="block text-xs font-semibold opacity-50 mb-1 text-center">Almoço</label><select value={batch.lunch} onChange={e => setBatch({ ...batch, lunch: Number(e.target.value) })} className={`tsel w-full py-2.5 rounded-xl border-2 ${bdr} text-sm ${dark ? 'bg-gray-700 text-white' : 'bg-white text-gray-900'}`}>{[0, 15, 30, 45, 60, 90, 120].map(v => <option key={v} value={v}>{v}min</option>)}</select></div>
+                            </div>
+                            <p className="text-xs text-center opacity-60 font-semibold mb-3">⏱ {fmtMin(Math.max(0, t2m(batch.end) - t2m(batch.start) - Number(batch.lunch)))} por dia</p>
+                            <button onClick={applyBatch} disabled={!picked.length} className={`w-full py-3.5 rounded-xl text-sm font-bold transition active:scale-95 ${picked.length ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg shadow-blue-200' : `${dark ? 'bg-gray-600 text-gray-400' : 'bg-gray-200 text-gray-400'} cursor-not-allowed`}`}>{picked.length ? `✓ Aplicar aos ${picked.length} dia(s)` : '⬆ Selecione os dias acima'}</button>
+                        </div>
+                    </div>
+                    <div>
+                        <p className="text-xs font-bold uppercase tracking-widest opacity-40 px-1 mb-2">Ajuste individual</p>
+                        <div className="space-y-2">{DAYS.map(dk => {
+                            const s = sched[dk]; const total = s.active ? Math.max(0, t2m(s.end) - t2m(s.start) - s.lunch) : 0; return (
+                                <div key={dk} className={`rounded-2xl p-3.5 border-2 transition-all ${picked.includes(dk) ? `border-blue-400 ${dark ? 'bg-blue-950/40' : 'bg-blue-50/70'}` : `border-transparent ${dark ? 'bg-gray-700' : 'bg-gray-50'}`}`}>
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-3">
+                                            <button onClick={() => setSched(p => ({ ...p, [dk]: { ...p[dk], active: !p[dk].active } }))} className={`tog-track ${s.active ? 'bg-green-500' : 'bg-gray-300'}`}><div className="tog-thumb" style={{ left: s.active ? '21px' : '3px' }} /></button>
+                                            <span className="font-bold text-sm">{DLABEL[dk]}</span>
+                                        </div>
+                                        {s.active ? <span className="mono text-xs font-bold text-blue-500">{fmtMin(total)}/dia</span> : <span className="text-xs opacity-40 italic">Folga</span>}
+                                    </div>
+                                    {s.active && <div className="grid grid-cols-3 gap-2 mt-3">
+                                        <TimePicker label="Início" value={s.start} onChange={v => setSched(p => ({ ...p, [dk]: { ...p[dk], start: v } }))} dark={dark} bdr={bdr} id={`${dk}-s`} />
+                                        <TimePicker label="Fim" value={s.end} onChange={v => setSched(p => ({ ...p, [dk]: { ...p[dk], end: v } }))} dark={dark} bdr={bdr} id={`${dk}-e`} />
+                                        <div><label className="block text-xs opacity-50 mb-1 text-center">Almoço</label><select value={s.lunch} onChange={e => setSched(p => ({ ...p, [dk]: { ...p[dk], lunch: Number(e.target.value) } }))} className={`tsel w-full py-2.5 rounded-xl border-2 ${bdr} text-xs ${dark ? 'bg-gray-700 text-white' : 'bg-white text-gray-900'}`}>{[0, 15, 30, 45, 60, 90, 120].map(v => <option key={v} value={v}>{v}min</option>)}</select></div>
+                                    </div>}
+                                </div>
+                            )
+                        })}</div>
+                    </div>
+                    <div className="flex gap-2 pt-1">
+                        <button onClick={saveSch} className="flex-1 py-4 bg-green-500 text-white rounded-2xl font-bold active:scale-95 shadow-lg shadow-green-200">✓ Salvar Jornada</button>
+                        <button onClick={() => { setEditSch(false); setPicked([]) }} className="flex-1 py-4 bg-gray-400 text-white rounded-2xl font-bold active:scale-95">✕ Cancelar</button>
+                    </div>
+                </div>) : (
+                    <div className="space-y-2">{DAYS.map(dk => {
+                        const s = sched[dk]; const total = s.active ? Math.max(0, t2m(s.end) - t2m(s.start) - s.lunch) : 0; return (
+                            <div key={dk} className={`flex items-center justify-between px-4 py-3 rounded-2xl ${dark ? 'bg-gray-700' : 'bg-gray-50'}`}>
+                                <div className="flex items-center gap-2.5"><div className={`w-2.5 h-2.5 rounded-full ${s.active ? 'bg-green-500' : 'bg-gray-400'}`} /><span className="font-semibold text-sm">{DLABEL[dk]}</span></div>
+                                {s.active ? <div className="text-right"><p className="mono text-sm font-bold">{s.start} – {s.end}</p><p className="text-xs opacity-50">{fmtMin(total)} · almoço {s.lunch}min</p></div> : <span className="text-xs opacity-40 italic">Folga</span>}
+                            </div>
+                        )
+                    })}</div>
+                )}
+            </section>}
+        </div>;
+    };
+
+    /* ══════════════ APP ══════════════ */
+    const App = () => {
+        const [now, setNow] = useState(new Date());
+        const [dark, setDark] = useState(false);
+        const [tab, setTab] = useState('ponto');
+        const [records, setRecs] = useState([]);
+        const [user, setUser] = useState({ name: '', email: '' });
+        const [editUsr, setEditUsr] = useState(true);
+        const [selDate, setSelDate] = useState(null);
+        const [notif, setNotif] = useState(null);
+        const [editRec, setEditRec] = useState(null);
+        const [showAdd, setShowAdd] = useState(false);
+        const [manual, setManual] = useState({ date: new Date().toISOString().split('T')[0], time: new Date().toTimeString().slice(0, 5), type: 'entrada', cat: 'normal' });
+        const [sal, setSal] = useState({ salary: '', workload: '220', wdPct: '65', wePct: '100' });
+        const [editSal, setEditSal] = useState(true);
+        const [calYear, setCalYear] = useState(new Date().getFullYear());
+        const [sched, setSched] = useState(DEF_SCH);
+        const [editSch, setEditSch] = useState(false);
+        const [picked, setPicked] = useState([]);
+        const [batch, setBatch] = useState({ start: '07:00', end: '17:00', lunch: 60 });
+        const [elapsed, setElapsed] = useState(0);
+        const [location, setLocation] = useState(null);
+
+        /* Load */
+        useEffect(() => {
+            const r = safeLS.get('pc_r'); const u = safeLS.get('pc_u'); const d = safeLS.get('pc_d'); const s = safeLS.get('pc_s'); const sc = safeLS.get('pc_sc');
+            if (r) setRecs(r); if (u) { setUser(u); setEditUsr(false) } if (d != null) setDark(d); if (s) { setSal(s); setEditSal(false) } if (sc) setSched({ ...DEF_SCH, ...sc });
+        }, []);
+
+        /* Clock */
+        useEffect(() => { const t = setInterval(() => setNow(new Date()), 1000); return () => clearInterval(t) }, []);
+
+        /* FIX: Toast com cancelamento de timeout anterior */
+        const toastTimer = useRef(null);
+        const toast = useCallback((msg, type = 'info') => {
+            if (toastTimer.current) clearTimeout(toastTimer.current);
+            setNotif({ msg, type });
+            toastTimer.current = setTimeout(() => { setNotif(null); toastTimer.current = null; }, 3500);
+        }, []);
+
+        /* Schedule helpers — FIX: usa localDay para corrigir timezone */
+        const getDaySch = useCallback(date => sched[JS2D[localDay(date)]] || { active: false, start: '07:00', end: '17:00', lunch: 60 }, [sched]);
+        const getExpMin = useCallback(date => { const s = getDaySch(date); return s.active ? Math.max(0, t2m(s.end) - t2m(s.start) - s.lunch) : 0 }, [getDaySch]);
+
+        /* Day stats */
+        const calcDay = useCallback(date => {
+            const dateStr = new Date(date).toDateString();
+            const dayRecs = records.filter(r => new Date(r.timestamp).toDateString() === dateStr).sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+            const sch = getDaySch(date);
+            const expMin = getExpMin(date);
+
+            // ── Separar pares por categoria ──────────────────────────────────
+            // Banco: cat='banco' → tempo acumulado separado, não entra na jornada normal
+            // Extra paga: cat='extra' → remunerada, fora da jornada
+            // Normal: cat='normal' ou sem cat → jornada regular
+            let normalMin = 0, extraPaidMin = 0, bankMin = 0;
+            let normalPairs = [], allPairs = [];
+
+            for (let i = 0; i < dayRecs.length - 1; i++) {
+                if (dayRecs[i].type === 'entrada' && dayRecs[i + 1]?.type === 'saida') {
+                    const dur = (new Date(dayRecs[i + 1].timestamp) - new Date(dayRecs[i].timestamp)) / 60000;
+                    const cat = dayRecs[i].cat || 'normal';
+                    const pair = { s: new Date(dayRecs[i].timestamp), e: new Date(dayRecs[i + 1].timestamp), dur, cat };
+                    allPairs.push(pair);
+                    if (cat === 'banco') {
+                        bankMin += dur;                          // banco: isolado, não entra na jornada
+                    } else if (cat === 'extra') {
+                        extraPaidMin += dur;                     // extra paga: isolada, remunerada
+                    } else {
+                        normalMin += dur;                        // normal: entra na jornada
+                        normalPairs.push(pair);
+                    }
+                }
+            }
+
+            // Descontar almoço só dos pares normais (único par sem saída intermediária)
+            let workMin = normalMin;
+            if (sch.lunch > 0 && normalPairs.length === 1 && normalMin > sch.lunch) workMin -= sch.lunch;
+
+            // Calcular horas além da jornada nos pares NORMAIS apenas
+            let extraMin = 0;
+            if (sch.active) normalPairs.forEach(p => {
+                const sm = p.s.getHours() * 60 + p.s.getMinutes();
+                const em = p.e.getHours() * 60 + p.e.getMinutes();
+                if (sm < t2m(sch.start)) extraMin += Math.min(t2m(sch.start) - sm, p.dur);
+                if (em > t2m(sch.end)) extraMin += Math.min(em - t2m(sch.end), p.dur);
+            });
+
+            return {
+                workMin:      Math.round(workMin),       // horas normais (após desconto almoço)
+                normalMin:    Math.round(normalMin),     // horas normais brutas
+                extraMin:     Math.round(extraMin),      // excedente da jornada (nos pares normais)
+                extraPaidMin: Math.round(extraPaidMin),  // horas marcadas como 'extra' (remuneradas)
+                bankMin:      Math.round(bankMin),       // banco de horas (não remunerado, isolado)
+                totalMin:     Math.round(normalMin + extraPaidMin + bankMin),
+                expMin,
+                balMin:       Math.round(workMin - expMin),
+                pairs:        allPairs.length,
+                normalPairs:  normalPairs.length,
+                recs:         dayRecs,
+                isWorkDay:    expMin > 0,
+            };
+        }, [records, getDaySch, getExpMin]);
+
+        /* Elapsed */
+        useEffect(() => {
+            const todayStr = new Date().toDateString();
+            const todayRecs = records.filter(r => new Date(r.timestamp).toDateString() === todayStr).sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+            let min = 0;
+            for (let i = 0; i < todayRecs.length; i++) {
+                if (todayRecs[i].type === 'entrada') {
+                    if (todayRecs[i + 1]?.type === 'saida') { min += (new Date(todayRecs[i + 1].timestamp) - new Date(todayRecs[i].timestamp)) / 60000; i++ }
+                    else { min += (new Date() - new Date(todayRecs[i].timestamp)) / 60000 }
+                }
+            }
+            setElapsed(Math.floor(min));
+        }, [now, records]);
+
+        /* Monthly stats */
+        const mStats = useMemo(() => {
+            const n = new Date(); const ms = new Date(n.getFullYear(), n.getMonth(), 1); const me = new Date(n.getFullYear(), n.getMonth() + 1, 0);
+            let tw = 0, te = 0, tePaid = 0, tb = 0, texp = 0, days = 0;
+            for (let d = new Date(ms); d <= me; d.setDate(d.getDate() + 1)) {
+                const s = calcDay(d);
+                if (s.recs.length) {
+                    days++;
+                    tw += s.workMin;          // horas normais (sem banco, sem extra marcada)
+                    te += s.extraMin;          // excedente da jornada nos pares normais
+                    tePaid += s.extraPaidMin;  // horas marcadas como 'extra' remunerada
+                    tb += s.bankMin;           // banco de horas (isolado, não remunerado)
+                }
+                if (s.isWorkDay) texp += s.expMin;
+            }
+            return { tw, te, tePaid, tb, texp, days, bal: tw - texp };
+        }, [calcDay]);
+
+        /* Chart data */
+        const chartData = useMemo(() => {
+            const n = new Date(); const data = [];
+            for (let i = 6; i >= 0; i--) { const d = new Date(n); d.setDate(d.getDate() - i); const s = calcDay(d); data.push({ date: d.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit' }), hours: s.workMin / 60 }) }
+            return data;
+        }, [calcDay]);
+
+        const isWorking = useMemo(() => {
+            const todayRecs = records.filter(r => new Date(r.timestamp).toDateString() === new Date().toDateString());
+            return todayRecs[todayRecs.length - 1]?.type === 'entrada';
+        }, [records, now]);
+
+        const todayS = useMemo(() => calcDay(new Date()), [calcDay, now]);
+        const todaySch = useMemo(() => getDaySch(new Date()), [getDaySch]);
+        const progressPct = useMemo(() => todayS.expMin > 0 ? Math.round((elapsed / todayS.expMin) * 100) : 0, [elapsed, todayS]);
+
+        /* FIX: calendário memoizado para evitar ~372 recálculos por render */
+        const calGrid = useMemo(() => {
+            const today = new Date();
+            return Array.from({ length: 12 }, (_, m) => {
+                const ms = new Date(calYear, m, 1); const me = new Date(calYear, m + 1, 0); const cells = [];
+                for (let i = 0; i < ms.getDay(); i++) cells.push(null);
+                for (let d = 1; d <= me.getDate(); d++) {
+                    const dt = new Date(calYear, m, d); const ds = calcDay(dt);
+                    cells.push({ d, dt, ds, isToday: dt.toDateString() === today.toDateString() });
+                }
+                return { m, ms, cells };
+            });
+        }, [calYear, calcDay]);
+
+        /* Geolocation */
+        const getLocation = useCallback(() => {
+            if (navigator.geolocation) navigator.geolocation.getCurrentPosition(p => setLocation({ lat: p.coords.latitude, lng: p.coords.longitude }), () => {});
+        }, []);
+
+        /* Record ops */
+        const punch = type => {
+            const r = { id: Date.now(), timestamp: new Date().toISOString(), type, date: new Date().toDateString(), location };
+            const upd = [...records, r]; setRecs(upd); safeLS.set('pc_r', upd);
+            toast(type === 'entrada' ? '✅ Entrada registrada!' : '✅ Saída registrada!', 'success');
+        };
+        const addManual = () => {
+            if (!manual.date || !manual.time) { toast('⚠️ Preencha todos os campos!', 'error'); return }
+            const ts = new Date(`${manual.date}T${manual.time}:00`);
+            if (isNaN(ts)) { toast('⚠️ Data/hora inválida!', 'error'); return }
+            const r = { id: Date.now(), timestamp: ts.toISOString(), type: manual.type, date: ts.toDateString(), manual: true, cat: manual.cat };
+            const upd = [...records, r].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+            setRecs(upd); safeLS.set('pc_r', upd); setShowAdd(false);
+            setManual({ date: new Date().toISOString().split('T')[0], time: new Date().toTimeString().slice(0, 5), type: 'entrada', cat: 'normal' });
+            toast('✅ Registro adicionado!', 'success');
+        };
+        const updateRec = (id, ts, type, cat) => {
+            const upd = records.map(r => r.id === id ? { ...r, timestamp: ts, type, cat: cat || r.cat || 'normal', date: new Date(ts).toDateString() } : r).sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+            setRecs(upd); safeLS.set('pc_r', upd); setEditRec(null); toast('✅ Registro atualizado!', 'success');
+        };
+        const deleteRec = id => {
+            if (!confirm('Excluir este registro?')) return;
+            const upd = records.filter(r => r.id !== id); setRecs(upd); safeLS.set('pc_r', upd); toast('🗑️ Excluído!', 'success');
+        };
+        const deleteAll = () => {
+            if (!confirm('⚠️ Apagar TODOS os registros?')) return;
+            if (!confirm('Tem certeza absoluta?')) return;
+            setRecs([]); safeLS.set('pc_r', []); toast('🗑️ Tudo apagado!', 'success');
+        };
+
+        /* Schedule ops */
+        const saveSch = () => {
+            for (const [dk, s] of Object.entries(sched)) { if (s.active && !validateTimeOrder(s.start, s.end)) { toast(`⚠️ Horário inválido em ${DLABEL[dk]}`, 'error'); return } }
+            safeLS.set('pc_sc', sched); setEditSch(false); setPicked([]); toast('⚙️ Jornada salva!', 'success');
+        };
+        const togglePick = dk => setPicked(p => p.includes(dk) ? p.filter(x => x !== dk) : [...p, dk]);
+        const applyBatch = () => {
+            if (!picked.length) { toast('⚠️ Selecione ao menos um dia!', 'error'); return }
+            if (!validateTimeOrder(batch.start, batch.end)) { toast('⚠️ Fim deve ser após início!', 'error'); return }
+            setSched(prev => { const n = { ...prev }; picked.forEach(dk => { n[dk] = { ...n[dk], start: batch.start, end: batch.end, lunch: Number(batch.lunch) } }); return n });
+            toast(`✅ Aplicado a ${picked.length} dia(s)!`, 'success');
+        };
+
+        /* Financial */
+        const extraPay = useMemo(() => {
+            if (!sal.salary) return null;
+            const sv = parseFloat(sal.salary); const wl = parseFloat(sal.workload);
+            if (!sv || !wl || sv <= 0 || wl <= 0) return null;
+            const hv = sv / wl;
+            const hvWd = hv * (1 + parseFloat(sal.wdPct || 0) / 100);
+            const hvWe = hv * (1 + parseFloat(sal.wePct || 0) / 100);
+            const n = new Date(); const ms = new Date(n.getFullYear(), n.getMonth(), 1); const me = new Date(n.getFullYear(), n.getMonth() + 1, 0);
+            // Separar horas PAGAS (extra remunerada) de BANCO (não remunerado)
+            let wdPaidH = 0, wePaidH = 0, wdBankH = 0, weBankH = 0, totalWorkMin = 0;
+            for (let d = new Date(ms); d <= me; d.setDate(d.getDate() + 1)) {
+                const s = calcDay(d);
+                totalWorkMin += s.workMin;
+                const dw = d.getDay(); const isWe = dw === 0 || dw === 6;
+                // Extras pagas = pares marcados como 'extra' (categoria explícita) + excedente da jornada normal
+                const paidH = (s.extraPaidMin + s.extraMin) / 60;
+                if (paidH > 0) isWe ? wePaidH += paidH : wdPaidH += paidH;
+                // Banco de horas (não remunerado, completamente separado)
+                const bankH = s.bankMin / 60;
+                if (bankH > 0) isWe ? weBankH += bankH : wdBankH += bankH;
+            }
+            const wdT = wdPaidH * hvWd;
+            const weT = wePaidH * hvWe;
+            const totalBank = wdBankH + weBankH;
+            return { hv, hvWd, hvWe, wdPaidH, wePaidH, wdBankH, weBankH, wdT, weT, totalBank, totalWorkMin,
+                total: wdT + weT };
+        }, [sal, calcDay]);
+
+        /* Export */
+        const exportRpt = (format = 'txt') => {
+            const n = new Date();
+            const mesAno = n.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+            const filename = `pontocerto-${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}`;
+            const sep = '═'.repeat(58);
+            const line = '─'.repeat(58);
+            const fmt = d => new Date(d).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+            const fmtDate = d => new Date(d).toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' });
+
+            // Coletar dados do mês inteiro dia a dia
+            const ms = new Date(n.getFullYear(), n.getMonth(), 1);
+            const me = new Date(n.getFullYear(), n.getMonth() + 1, 0);
+            const diasTrabalhados = [];
+            let totalTrabMin = 0, totalExpMin = 0, totalExtraPaidMin = 0, totalBankMin = 0, totalBalMin = 0;
+            for (let d = new Date(ms); d <= me; d.setDate(d.getDate() + 1)) {
+                const s = calcDay(new Date(d));
+                if (s.recs.length > 0 || s.isWorkDay) {
+                    diasTrabalhados.push({ date: new Date(d), s });
+                    totalTrabMin += s.workMin;
+                    totalExpMin += s.expMin;
+                    totalExtraPaidMin += s.extraPaidMin + s.extraMin; // extra paga = marcadas + excedente jornada
+                    totalBankMin += s.bankMin;
+                    totalBalMin += s.balMin;
+                }
+            }
+
+            // Salário por hora
+            const sv = parseFloat(sal.salary || 0);
+            const wl = parseFloat(sal.workload || 220);
+            const hv = sv > 0 && wl > 0 ? sv / wl : 0;
+            const hvWd = hv * (1 + parseFloat(sal.wdPct || 50) / 100);
+            const hvWe = hv * (1 + parseFloat(sal.wePct || 100) / 100);
+
+            let type = '';
+            let out = '';
+
+            if (format === 'txt') {
+                type = 'txt';
+                out += `${sep}\n`;
+                out += `  PONTOCERTO — RELATÓRIO MENSAL DETALHADO\n`;
+                out += `${sep}\n`;
+                out += `  Colaborador : ${user.name || 'Não informado'}\n`;
+                out += `  Período     : ${mesAno.toUpperCase()}\n`;
+                out += `  Gerado em   : ${n.toLocaleString('pt-BR')}\n`;
+                out += `${sep}\n\n`;
+
+                out += `JORNADA CONFIGURADA\n${line}\n`;
+                DAYS.forEach(dk => {
+                    const s = sched[dk];
+                    if (s.active) {
+                        const tot = Math.max(0, t2m(s.end) - t2m(s.start) - s.lunch);
+                        out += `  ${DLABEL[dk].padEnd(12)}: ${s.start} – ${s.end}  |  Almoço: ${s.lunch}min  |  Jornada: ${fmtMin(tot)}\n`;
+                    } else {
+                        out += `  ${DLABEL[dk].padEnd(12)}: FOLGA\n`;
+                    }
+                });
+                out += `\n`;
+
+                out += `REGISTROS DIÁRIOS\n${line}\n`;
+                diasTrabalhados.forEach(({ date, s }) => {
+                    const dStr = fmtDate(date).toUpperCase();
+                    out += `\n  ${dStr}\n`;
+                    // Registros do dia
+                    if (s.recs.length === 0) {
+                        out += `    (sem registros)\n`;
+                    } else {
+                        s.recs.forEach(r => {
+                            const tipo = r.type === 'entrada' ? '→ ENTRADA' : '← SAÍDA  ';
+                            const cat = r.cat && r.cat !== 'normal' ? ` [${r.cat.toUpperCase()}]` : '';
+                            const manual = r.manual ? ' (manual)' : '';
+                            out += `    ${tipo}  ${fmt(r.timestamp)}${cat}${manual}\n`;
+                        });
+                    }
+                    // Resumo do dia
+                    out += `    ${'-'.repeat(40)}\n`;
+                    out += `    Trabalhado : ${fmtMin(s.workMin).padEnd(10)}`;
+                    out += ` Esperado: ${fmtMin(s.expMin)}\n`;
+                    out += `    Saldo      : ${(s.balMin >= 0 ? '+' : '') + fmtMin(s.balMin).padEnd(10)}`;
+                    const dayExtraTot = s.extraPaidMin + s.extraMin;
+                    if (dayExtraTot > 0) out += ` Extra paga: ${fmtMin(dayExtraTot)}`;
+                    if (s.bankMin > 0) out += ` Banco: ${fmtMin(s.bankMin)}`;
+                    out += `\n`;
+                });
+
+                out += `\n${sep}\n`;
+                out += `RESUMO DO MÊS\n${line}\n`;
+                out += `  Dias com registro : ${diasTrabalhados.filter(d => d.s.recs.length > 0).length}\n`;
+                out += `  Horas trabalhadas : ${fmtMin(totalTrabMin)}\n`;
+                out += `  Horas esperadas   : ${fmtMin(totalExpMin)}\n`;
+                out += `  Saldo total       : ${(totalBalMin >= 0 ? '+' : '') + fmtMin(totalBalMin)}\n`;
+                out += `\n`;
+                out += `HORAS EXTRAS\n${line}\n`;
+                out += `  Extras remuneradas: ${fmtMin(totalExtraPaidMin)}\n`;
+                out += `  Banco de horas    : ${fmtMin(totalBankMin)}  (não remunerado)\n`;
+                if (sv > 0) {
+                    const valorExtras = (totalExtraPaidMin / 60) * hvWd;
+                    out += `\nCÁLCULO FINANCEIRO\n${line}\n`;
+                    out += `  Salário base      : R$ ${sv.toFixed(2)}\n`;
+                    out += `  Valor hora normal : R$ ${hv.toFixed(2)}\n`;
+                    out += `  Valor hora extra  : R$ ${hvWd.toFixed(2)} (${sal.wdPct}%)\n`;
+                    out += `  Extras a receber  : R$ ${valorExtras.toFixed(2)}\n`;
+                    out += `  TOTAL DO MÊS      : R$ ${(sv + valorExtras).toFixed(2)}\n`;
+                }
+                out += `\n${sep}\n`;
+                out += `  Relatório gerado pelo PontoCerto v2.0\n`;
+                out += `${sep}\n`;
+
+            } else {
+                type = 'csv';
+                // Cabeçalho do CSV
+                out += `PONTOCERTO - RELATÓRIO MENSAL;${mesAno.toUpperCase()};;;;;;\n`;
+                out += `Colaborador;${user.name || 'Não informado'};;;;;;\n`;
+                out += `Gerado em;${n.toLocaleString('pt-BR')};;;;;;\n`;
+                out += `;;;;;;\n`;
+
+                // Tabela de registros
+                out += `DATA;DIA DA SEMANA;TIPO;HORÁRIO;CATEGORIA;ORIGEM;\n`;
+                diasTrabalhados.forEach(({ date, s }) => {
+                    if (s.recs.length === 0) {
+                        out += `${date.toLocaleDateString('pt-BR')};${date.toLocaleDateString('pt-BR', { weekday: 'long' })};-;-;-;-;\n`;
+                    } else {
+                        s.recs.forEach(r => {
+                            out += `${date.toLocaleDateString('pt-BR')};`;
+                            out += `${date.toLocaleDateString('pt-BR', { weekday: 'long' })};`;
+                            out += `${r.type === 'entrada' ? 'Entrada' : 'Saída'};`;
+                            out += `${fmt(r.timestamp)};`;
+                            out += `${r.cat || 'normal'};`;
+                            out += `${r.manual ? 'Manual' : 'Automático'};\n`;
+                        });
+                    }
+                });
+
+                // Resumo por dia
+                out += `;;;;;;\n`;
+                out += `RESUMO POR DIA;;;;;;\n`;
+                out += `DATA;DIA;TRABALHADO;ESPERADO;SALDO;EXTRA PAGA;BANCO;\n`;
+                diasTrabalhados.forEach(({ date, s }) => {
+                    out += `${date.toLocaleDateString('pt-BR')};`;
+                    out += `${date.toLocaleDateString('pt-BR', { weekday: 'short' })};`;
+                    out += `${fmtMin(s.workMin)};`;
+                    out += `${fmtMin(s.expMin)};`;
+                    out += `${(s.balMin >= 0 ? '+' : '') + fmtMin(s.balMin)};`;
+                    out += `${(s.extraPaidMin + s.extraMin) > 0 ? fmtMin(s.extraPaidMin + s.extraMin) : '-'};`;
+                    out += `${s.bankMin > 0 ? fmtMin(s.bankMin) : '-'};\n`;
+                });
+
+                // Totais
+                out += `;;;;;;\n`;
+                out += `TOTAIS DO MÊS;;;;;;\n`;
+                out += `Total trabalhado;${fmtMin(totalTrabMin)};;;;;\n`;
+                out += `Total esperado;${fmtMin(totalExpMin)};;;;;\n`;
+                out += `Saldo;${(totalBalMin >= 0 ? '+' : '') + fmtMin(totalBalMin)};;;;;\n`;
+                out += `Extras remuneradas;${fmtMin(totalExtraPaidMin)};;;;;\n`;
+                out += `Banco de horas;${fmtMin(totalBankMin)};;;;;\n`;
+                if (sv > 0) {
+                    const valorExtras = (totalExtraPaidMin / 60) * hvWd;
+                    out += `;;;;;;\n`;
+                    out += `FINANCEIRO;;;;;;\n`;
+                    out += `Salário base;R$ ${sv.toFixed(2)};;;;;\n`;
+                    out += `Extras a receber;R$ ${valorExtras.toFixed(2)};;;;;\n`;
+                    out += `Total do mês;R$ ${(sv + valorExtras).toFixed(2)};;;;;\n`;
+                }
+            }
+
+            const blob = new Blob([out], { type: format === 'txt' ? 'text/plain;charset=utf-8' : 'text/csv;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a'); a.href = url;
+            a.download = `${filename}.${type}`; a.click(); URL.revokeObjectURL(url);
+            toast(`📄 Relatório exportado como ${type.toUpperCase()}!`, 'success');
+        };
+
+        /* Calendar render — usa calGrid memoizado */
+        const renderCal = () => calGrid.map(({ m, ms, cells }) => (
+            <div key={m} className={`mc p-3 rounded-xl shadow ${dark ? 'bg-gray-800' : 'bg-white'}`}>
+                <div className="font-bold text-xs text-center capitalize mb-2">{ms.toLocaleDateString('pt-BR', { month: 'long' })} {calYear}</div>
+                <div className="grid grid-cols-7 gap-0.5 mb-1">{['D','S','T','Q','Q','S','S'].map((d, i) => <div key={i} className="text-center text-xs opacity-40 font-bold">{d}</div>)}</div>
+                <div className="grid grid-cols-7 gap-0.5">
+                    {cells.map((cell, i) => {
+                        if (!cell) return <div key={`e${i}`} />;
+                        const { d, dt, ds, isToday } = cell; const hasR = ds.recs.length > 0;
+                        let cls = 'cal-day aspect-square flex items-center justify-center text-xs rounded-lg ';
+                        if (!hasR) cls += dark ? 'bg-gray-700 text-gray-500' : 'bg-gray-100 text-gray-400';
+                        else if (ds.extraMin > 0) cls += 'cal-e'; else if (ds.pairs >= 2) cls += 'cal-b'; else cls += 'cal-n';
+                        if (isToday) cls += ' cal-t';
+                        return <button key={d} onClick={() => hasR && setSelDate(dt)} className={cls} disabled={!hasR}>{d}</button>;
+                    })}
+                </div>
+            </div>
+        ));
+
+        /* Theme */
+        const bg = dark ? 'bg-gray-900 text-white' : 'bg-slate-50 text-gray-900';
+        const card = dark ? 'bg-gray-800 text-white' : 'bg-white text-gray-900';
+        const sub = dark ? 'bg-gray-700' : 'bg-gray-100';
+        const bdr = dark ? 'border-gray-600' : 'border-gray-200';
+        const inp = dark ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900';
+        const glass = dark ? 'glass glass-dark' : 'glass glass-light';
+
+        return (
+            <ErrorBoundary>
+                <div className={`min-h-screen ${bg} transition-colors duration-300`} style={{ paddingBottom: 88 }} id="main-content">
+                    {/* Toast */}
+                    {notif && <div className="fixed top-3 inset-x-3 z-50 pointer-events-none" role="alert"><div className={`${dark ? 'bg-gray-700' : 'bg-white'} px-4 py-3 rounded-2xl shadow-xl border-l-4 ${notif.type === 'error' ? 'border-red-500' : 'border-green-500'} text-sm font-semibold text-center`}>{notif.msg}</div></div>}
+
+                    {/* Header */}
+                    <div className={`${card} shadow-sm px-4 pt-4 pb-3`}>
+                        <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                                <div className="w-9 h-9 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center"><Icon name="clock" className="w-5 h-5 text-white" /></div>
+                                <div><h1 className="font-extrabold text-base grad-text">PontoCerto</h1><p className="text-xs opacity-40">Controle de Jornada</p></div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <button onClick={getLocation} className={`p-2 rounded-xl transition ${dark ? 'hover:bg-gray-700' : 'hover:bg-gray-100'}`} title="Localização"><Icon name="location" className="w-5 h-5" /></button>
+                                <button onClick={() => { const v = !dark; setDark(v); safeLS.set('pc_d', v) }} className={`p-2 rounded-xl transition ${dark ? 'hover:bg-gray-700' : 'hover:bg-gray-100'}`}><Icon name={dark ? 'sun' : 'moon'} className="w-5 h-5" /></button>
+                            </div>
+                        </div>
+                        <div className="text-center">
+                            <time className="mono text-3xl font-bold tracking-tighter">{now.toLocaleTimeString('pt-BR')}</time>
+                            <p className="text-xs opacity-50 capitalize mt-0.5">{now.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
+                            {todaySch.active ? <p className="text-xs font-semibold text-blue-500 mt-1">⏰ {todaySch.start} – {todaySch.end} · {todaySch.lunch}min almoço</p> : <p className="text-xs text-gray-400 mt-1">📅 Folga hoje</p>}
+                        </div>
+                    </div>
+
+                    {/* Tabs */}
+                    <nav className={`${card} shadow-lg px-3 py-2 sticky top-0 z-30 border-b ${bdr}`}>
+                        <div className="flex items-center justify-center gap-1">
+                            {[{ id: 'ponto', icon: 'clock', label: 'Ponto' }, { id: 'calendario', icon: 'cal', label: 'Cal.' }, { id: 'relatorios', icon: 'file', label: 'Relat.' }, { id: 'financeiro', icon: 'trend', label: 'Financeiro' }, { id: 'usuario', icon: 'user', label: 'Perfil' }].map(x => (
+                                <button key={x.id} onClick={() => setTab(x.id)}
+                                    className={`flex flex-col items-center justify-center gap-0.5 px-2 py-2 rounded-2xl transition-all duration-200 flex-1 max-w-[70px] ${tab === x.id
+                                        ? 'bg-gradient-to-b from-blue-500 to-indigo-600 text-white font-bold shadow-lg scale-105'
+                                        : (dark ? 'text-gray-400 hover:text-gray-200 hover:bg-gray-700' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100')
+                                    }`}>
+                                    <Icon name={x.icon} className={`transition-all duration-200 ${tab === x.id ? 'w-5 h-5' : 'w-[18px] h-[18px]'}`} />
+                                    <span className="text-[10px] font-semibold truncate w-full text-center leading-tight mt-0.5">{x.label}</span>
+                                    {tab === x.id && <span className="w-1 h-1 rounded-full bg-white/80" />}
+                                </button>
+                            ))}
+                        </div>
+                    </nav>
+
+                    <main className="p-3 space-y-3">
+
+                        {/* ══════ PONTO ══════ */}
+                        {tab === 'ponto' && <div className="space-y-3">
+                            <section className={`${card} rounded-2xl shadow p-4`}>
+                                <div className="flex flex-col items-center mb-4">
+                                    <ProgressRing percent={progressPct} size={140} stroke={10} working={isWorking}>
+                                        <p className="mono text-2xl font-extrabold text-blue-600 count-anim">{fmtMin(elapsed)}</p>
+                                        <p className="text-xs opacity-50">{progressPct}%</p>
+                                    </ProgressRing>
+                                    <div className={`mt-2 py-1.5 px-4 rounded-full text-xs font-bold ${isWorking ? 'bg-green-100 text-green-700 pulse-w' : 'bg-gray-100 text-gray-500'}`}>
+                                        {isWorking ? '🟢 Trabalhando' : '⚪ Fora do expediente'}
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-3 mb-3">
+                                    <button onClick={() => punch('entrada')} disabled={isWorking} className={`p-4 rounded-2xl text-white font-bold flex flex-col items-center gap-1.5 transition-all ${isWorking ? 'bg-gray-300 cursor-not-allowed' : 'bg-gradient-to-br from-emerald-400 to-green-600 active:scale-95 shadow-lg shadow-green-200'}`}><Icon name="play" className="w-7 h-7" /><span className="text-sm">Iniciar</span></button>
+                                    <button onClick={() => punch('saida')} disabled={!isWorking} className={`p-4 rounded-2xl text-white font-bold flex flex-col items-center gap-1.5 transition-all ${!isWorking ? 'bg-gray-300 cursor-not-allowed' : 'bg-gradient-to-br from-red-400 to-rose-600 active:scale-95 shadow-lg shadow-red-200'}`}><Icon name="stop" className="w-7 h-7" /><span className="text-sm">Encerrar</span></button>
+                                </div>
+                                {todayS.recs.length > 0 && <DayTimeline records={todayS.recs} sched={todaySch} dark={dark} />}
+                            </section>
+
+                            <div className="grid grid-cols-2 gap-2">
+                                <StatCard label="Trabalhadas" value={fmtMin(todayS.workMin)} icon="⏱" gradient="from-blue-500 to-blue-600" />
+                                <StatCard label="Esperadas" value={fmtMin(todayS.expMin)} icon="🎯" gradient="from-emerald-500 to-green-600" />
+                                <StatCard label="Extra paga" value={fmtMin(todayS.extraMin + todayS.extraPaidMin)} icon="⚡" gradient="from-amber-400 to-yellow-500" extra={(todayS.extraMin + todayS.extraPaidMin) > 0 ? <span className="badge-extra inline-block">ativo</span> : null} />
+                                <StatCard label="Banco" value={fmtMin(todayS.bankMin)} icon="🏦" gradient="from-purple-500 to-violet-600" />
+                            </div>
+                            <div className={`p-3 rounded-2xl text-center font-bold ${todayS.balMin >= 0 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'} ${glass}`}>
+                                <span className="text-sm">Saldo Hoje: </span><span className="mono text-xl">{todayS.balMin >= 0 ? '+' : ''}{fmtMin(todayS.balMin)}</span>
+                                {elapsed >= todayS.expMin && todayS.expMin > 0 && <span className="ml-2">✅</span>}
+                            </div>
+
+                            <section className={`${card} rounded-2xl shadow p-4`}>
+                                <h2 className="font-bold text-sm mb-3">📊 Semana Atual</h2>
+                                <WeekBarChart calcDay={calcDay} dark={dark} />
+                                <div className="flex justify-center gap-4 mt-2 text-xs opacity-50">
+                                    <span className="flex items-center gap-1"><div className={`w-2 h-2 rounded ${dark ? 'bg-gray-600' : 'bg-gray-300'}`} /> Esperado</span>
+                                    <span className="flex items-center gap-1"><div className="w-2 h-2 rounded bg-blue-400" /> Trabalhado</span>
+                                    <span className="flex items-center gap-1"><div className="w-2 h-2 rounded bg-yellow-400" /> Extra</span>
+                                </div>
+                            </section>
+
+                            <section className={`${card} rounded-2xl shadow p-4`}>
+                                <div className="flex justify-between items-center mb-3">
+                                    <h2 className="font-bold text-sm">Registros de Hoje</h2>
+                                    <button onClick={() => setShowAdd(true)} className="flex items-center gap-1 text-xs px-3 py-1.5 bg-blue-500 text-white rounded-xl font-bold active:scale-95"><Icon name="plus" className="w-3 h-3" />Adicionar</button>
+                                </div>
+                                {showAdd && <div className="fixed inset-0 bg-black/60 flex items-end justify-center z-50 p-4">
+                                    <div className={`${card} rounded-2xl shadow-2xl p-5 w-full max-w-sm`}>
+                                        <h3 className="font-bold text-base mb-4">Adicionar Registro</h3>
+                                        <div className="space-y-3">
+                                            <div><label className="text-xs font-semibold opacity-60 block mb-1">Data e Hora</label>
+                                                <DateTimePicker value={new Date(`${manual.date}T${manual.time}:00`).toISOString()} onChange={v => { const dt = new Date(v); setManual({ ...manual, date: dt.toISOString().split('T')[0], time: `${String(dt.getHours()).padStart(2,'0')}:${String(dt.getMinutes()).padStart(2,'0')}` }) }} dark={dark} bdr={bdr} />
+                                            </div>
+                                            <div><label className="text-xs font-semibold opacity-60 block mb-1">Tipo</label>
+                                                <select value={manual.type} onChange={e => setManual({ ...manual, type: e.target.value })} className={`w-full p-3 rounded-xl border ${inp} text-sm font-semibold`}><option value="entrada">🟢 Entrada</option><option value="saida">🔴 Saída</option></select>
+                                            </div>
+                                            <div><label className="text-xs font-semibold opacity-60 block mb-2">Categoria</label>
+                                                <div className="grid grid-cols-3 gap-2">{[{ v: 'normal', e: '⚪', l: 'Normal' }, { v: 'extra', e: '⏰', l: 'Extra' }, { v: 'banco', e: '🏦', l: 'Banco' }].map(c => (
+                                                    <button key={c.v} onClick={() => setManual({ ...manual, cat: c.v })} className={`py-3 rounded-xl text-xs font-bold border-2 transition active:scale-95 ${manual.cat === c.v ? 'border-blue-500 bg-blue-50 text-blue-700' : `border-gray-200 ${dark ? 'border-gray-600 bg-gray-700' : ''}`}`}><span className="text-lg mb-0.5 block">{c.e}</span>{c.l}</button>
+                                                ))}</div>
+                                            </div>
+                                            <div className="flex gap-2 pt-1">
+                                                <button onClick={addManual} className="flex-1 py-3 bg-green-500 text-white rounded-xl font-bold active:scale-95">✓ Adicionar</button>
+                                                <button onClick={() => setShowAdd(false)} className="flex-1 py-3 bg-gray-400 text-white rounded-xl font-bold active:scale-95">✕ Cancelar</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>}
+                                {(() => {
+                                    const todayStr = new Date().toDateString();
+                                    const todayAll = records.filter(r => new Date(r.timestamp).toDateString() === todayStr).sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+                                    const normal = todayAll.filter(r => (r.cat || 'normal') !== 'banco');
+                                    const banco  = todayAll.filter(r => r.cat === 'banco');
+                                    const RecRow = ({ rec }) => (
+                                        <div className={`flex items-center justify-between p-2.5 rounded-xl ${rec.type === 'entrada' ? (rec.cat === 'banco' ? 'bg-purple-50 text-purple-800' : 'bg-green-50 text-green-800') : (rec.cat === 'banco' ? 'bg-purple-50 text-purple-800' : 'bg-red-50 text-red-800')}`}>
+                                            <div>
+                                                <div className="font-bold text-sm flex items-center gap-1">
+                                                    {rec.type === 'entrada' ? (rec.cat === 'banco' ? '🏦 Entrada' : '🟢 Entrada') : (rec.cat === 'banco' ? '🏦 Saída' : '🔴 Saída')}
+                                                    {rec.manual && <span className="text-xs opacity-50">(manual)</span>}
+                                                    {rec.cat === 'extra' && <span className="text-xs px-1.5 py-0.5 bg-yellow-500 text-white rounded-full badge-extra">Extra</span>}
+                                                </div>
+                                                <time className="mono text-sm font-bold">{new Date(rec.timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</time>
+                                            </div>
+                                            <div className="flex gap-1">
+                                                <button onClick={() => setEditRec({ ...rec })} className="p-2 bg-blue-500 text-white rounded-xl active:scale-90"><Icon name="edit" className="w-3.5 h-3.5" /></button>
+                                                <button onClick={() => deleteRec(rec.id)} className="p-2 bg-red-500 text-white rounded-xl active:scale-90"><Icon name="trash" className="w-3.5 h-3.5" /></button>
+                                            </div>
+                                        </div>
+                                    );
+                                    return <div className="space-y-3">
+                                        {/* Jornada normal + extras */}
+                                        <div>
+                                            <p className="text-xs font-bold uppercase tracking-widest opacity-40 mb-1.5">⏱ Jornada / Extra paga</p>
+                                            <div className="space-y-2 max-h-52 overflow-y-auto no-sb">
+                                                {normal.length > 0 ? normal.map(rec => <RecRow key={rec.id} rec={rec} />) : <p className="text-center opacity-30 py-3 text-xs">Nenhum registro</p>}
+                                            </div>
+                                        </div>
+                                        {/* Banco de horas — separado */}
+                                        <div className={`rounded-2xl p-3 border-2 border-dashed ${dark ? 'border-purple-800 bg-purple-950/20' : 'border-purple-200 bg-purple-50/50'}`}>
+                                            <p className="text-xs font-bold uppercase tracking-widest text-purple-500 mb-1.5">🏦 Banco de Horas</p>
+                                            <div className="space-y-2 max-h-36 overflow-y-auto no-sb">
+                                                {banco.length > 0 ? banco.map(rec => <RecRow key={rec.id} rec={rec} />) : <p className="text-center text-purple-400 opacity-50 py-2 text-xs">Nenhum registro de banco hoje</p>}
+                                            </div>
+                                        </div>
+                                    </div>;
+                                })()}
+                            </section>
+                        </div>}
+
+                        {/* ══════ CALENDÁRIO ══════ */}
+                        {tab === 'calendario' && <div className="space-y-3">
+                            <section className={`${card} rounded-2xl shadow p-4`}>
+                                <div className="flex items-center justify-between mb-3">
+                                    <h2 className="font-bold text-sm">📅 Calendário Anual</h2>
+                                    <div className="flex items-center gap-2">
+                                        <button onClick={() => setCalYear(calYear - 1)} className={`p-1.5 rounded-lg ${dark ? 'hover:bg-gray-700' : 'hover:bg-gray-100'}`}><Icon name="chevL" className="w-4 h-4" /></button>
+                                        <span className="font-bold mono">{calYear}</span>
+                                        <button onClick={() => setCalYear(calYear + 1)} className={`p-1.5 rounded-lg ${dark ? 'hover:bg-gray-700' : 'hover:bg-gray-100'}`}><Icon name="chevR" className="w-4 h-4" /></button>
+                                    </div>
+                                </div>
+                                <div className="flex gap-3 flex-wrap mb-3 text-xs">
+                                    {[['bg-blue-300','Normal'],['bg-yellow-300','Extras'],['bg-purple-300','Banco'],['bg-gray-200','Vazio']].map(([c,l]) => <div key={l} className="flex items-center gap-1"><div className={`w-3 h-3 rounded ${c}`} /><span className="opacity-60">{l}</span></div>)}
+                                </div>
+                                <div className="grid grid-cols-1 gap-3 max-h-[65vh] overflow-y-auto no-sb">{renderCal()}</div>
+                            </section>
+                            {selDate && (() => {
+                                const ds = calcDay(selDate); return (
+                                    <section className={`${card} rounded-2xl shadow p-4`}>
+                                        <div className="flex justify-between items-center mb-3">
+                                            <h3 className="font-bold text-sm capitalize">{selDate.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</h3>
+                                            <button onClick={() => setSelDate(null)} className="text-red-500 p-1.5 rounded-lg font-bold">✕</button>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-2 mb-2">
+                                            {[{ l: 'Trabalhadas', v: fmtMin(ds.workMin), c: 'bg-blue-100 text-blue-800' }, { l: 'Esperadas', v: fmtMin(ds.expMin), c: 'bg-green-100 text-green-800' }, { l: 'Extra paga', v: fmtMin(ds.extraPaidMin + ds.extraMin), c: 'bg-amber-100 text-amber-800' }, { l: 'Banco 🏦', v: fmtMin(ds.bankMin), c: 'bg-purple-100 text-purple-800' }].map(x => <div key={x.l} className={`p-2 rounded-xl text-center ${x.c}`}><p className="mono font-bold">{x.v}</p><p className="text-xs opacity-70">{x.l}</p></div>)}
+                                        </div>
+                                        <div className={`mb-2 p-2 rounded-xl text-center text-sm font-bold ${ds.balMin >= 0 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>Saldo: {ds.balMin >= 0 ? '+' : ''}{fmtMin(ds.balMin)}</div>
+                                        {(() => {
+                                            const normal = ds.recs.filter(r => (r.cat || 'normal') !== 'banco');
+                                            const banco  = ds.recs.filter(r => r.cat === 'banco');
+                                            const CalRow = ({ rec, i }) => (
+                                                <div className={`flex items-center justify-between p-2 rounded-lg text-xs ${rec.type === 'entrada' ? (rec.cat === 'banco' ? 'bg-purple-50 text-purple-800' : 'bg-green-50 text-green-800') : (rec.cat === 'banco' ? 'bg-purple-50 text-purple-800' : 'bg-red-50 text-red-800')}`}>
+                                                    <div>
+                                                        <span className="font-semibold">
+                                                            {rec.type === 'entrada' ? (rec.cat === 'banco' ? '🏦' : '🟢') : (rec.cat === 'banco' ? '🏦' : '🔴')}
+                                                            {' '}{new Date(rec.timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                                                        </span>
+                                                        {rec.cat === 'extra' && <span className="ml-1 px-1.5 py-0.5 bg-yellow-500 text-white rounded-full">Extra</span>}
+                                                        {rec.manual && <span className="ml-1 opacity-40">(manual)</span>}
+                                                    </div>
+                                                    <div className="flex gap-1">
+                                                        <button onClick={() => setEditRec({ ...rec })} className="p-1.5 bg-blue-500 text-white rounded-lg"><Icon name="edit" className="w-3 h-3" /></button>
+                                                        <button onClick={() => deleteRec(rec.id)} className="p-1.5 bg-red-500 text-white rounded-lg"><Icon name="trash" className="w-3 h-3" /></button>
+                                                    </div>
+                                                </div>
+                                            );
+                                            return <div className="space-y-2">
+                                                <div>
+                                                    <p className="text-xs font-bold uppercase tracking-widest opacity-40 mb-1">⏱ Jornada / Extra paga</p>
+                                                    <div className="space-y-1 max-h-32 overflow-y-auto no-sb">
+                                                        {normal.length > 0 ? normal.map((rec, i) => <CalRow key={i} rec={rec} i={i} />) : <p className="text-center opacity-30 py-2 text-xs">Nenhum</p>}
+                                                    </div>
+                                                </div>
+                                                {banco.length > 0 && <div className={`rounded-xl p-2 border border-dashed ${dark ? 'border-purple-700 bg-purple-950/20' : 'border-purple-300 bg-purple-50'}`}>
+                                                    <p className="text-xs font-bold uppercase tracking-widest text-purple-500 mb-1">🏦 Banco de Horas</p>
+                                                    <div className="space-y-1 max-h-28 overflow-y-auto no-sb">
+                                                        {banco.map((rec, i) => <CalRow key={i} rec={rec} i={i} />)}
+                                                    </div>
+                                                </div>}
+                                            </div>;
+                                        })()}
+                                    </section>
+                                )
+                            })()}
+                        </div>}
+
+                        {/* ══════ RELATÓRIOS ══════ */}
+                        {tab === 'relatorios' && (() => {
+                            const n = new Date(); const ms = new Date(n.getFullYear(), n.getMonth(), 1); const me = new Date(n.getFullYear(), n.getMonth() + 1, 0);
+                            const worked = []; for (let d = new Date(ms); d <= me; d.setDate(d.getDate() + 1)) { const s = calcDay(d); if (s.recs.length) worked.push({ date: new Date(d), s }) }
+                            return <div className="space-y-3">
+                                <section className={`${card} rounded-2xl shadow p-4`}>
+                                    <div className="flex items-center justify-between mb-3">
+                                        <h2 className="font-bold text-sm flex items-center gap-2"><Icon name="trend" className="w-4 h-4" />Relatório Mensal</h2>
+                                        <div className="flex gap-2">
+                                            <button onClick={() => exportRpt('txt')} className="flex items-center gap-1 px-3 py-1.5 bg-blue-500 text-white rounded-xl text-xs font-bold active:scale-95"><Icon name="download" className="w-3.5 h-3.5" />TXT</button>
+                                            <button onClick={() => exportRpt('csv')} className="flex items-center gap-1 px-3 py-1.5 bg-green-500 text-white rounded-xl text-xs font-bold active:scale-95"><Icon name="download" className="w-3.5 h-3.5" />CSV</button>
+                                        </div>
+                                    </div>
+                                    {chartData.length > 0 && <div className="mb-4"><h3 className="text-xs font-semibold opacity-60 mb-2">Últimos 7 dias</h3><HoursChart data={chartData} dark={dark} /></div>}
+                                    <div className="mb-4">
+                                        <div className="flex justify-between text-xs font-semibold mb-1"><span>Progresso Mensal</span><span className="mono">{fmtMin(mStats.tw)} / {fmtMin(mStats.texp)}</span></div>
+                                        <div className={`w-full h-3 rounded-full ${dark ? 'bg-gray-700' : 'bg-gray-200'} overflow-hidden`}>
+                                            <div className={`h-full rounded-full transition-all duration-500 ${mStats.bal >= 0 ? 'bg-gradient-to-r from-green-400 to-emerald-500' : 'bg-gradient-to-r from-red-400 to-rose-500'}`} style={{ width: `${Math.min(100, mStats.texp > 0 ? (mStats.tw / mStats.texp) * 100 : 0)}%` }} />
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-2 mb-3">
+                                        <StatCard label="Trabalhado" value={fmtMin(mStats.tw)} gradient="from-blue-500 to-blue-600" />
+                                        <StatCard label="Esperado" value={fmtMin(mStats.texp)} gradient="from-green-500 to-green-600" />
+                                        <StatCard label="Extra paga" value={fmtMin(mStats.te + mStats.tePaid)} gradient="from-amber-500 to-yellow-500" />
+                                        <StatCard label="Banco 🏦" value={fmtMin(mStats.tb)} gradient="from-purple-500 to-violet-600" />
+                                    </div>
+                                    <div className={`p-4 rounded-2xl text-center ${mStats.bal >= 0 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                        <p className="mono text-3xl font-extrabold count-anim">{mStats.bal >= 0 ? '+' : ''}{fmtMin(mStats.bal)}</p>
+                                        <p className="text-sm font-bold mt-1">{mStats.bal >= 0 ? '✅ Saldo Positivo' : '⚠️ Saldo Negativo'}</p>
+                                        <p className="text-xs opacity-60 mt-0.5">{mStats.days} dias trabalhados</p>
+                                    </div>
+                                </section>
+                                {worked.length > 0 && <section className={`${card} rounded-2xl shadow p-4`}>
+                                    <h2 className="font-bold text-sm mb-3">📅 Detalhamento</h2>
+                                    <div className="space-y-2 max-h-96 overflow-y-auto no-sb">
+                                        {[...worked].reverse().map(({ date, s }) => (
+                                            <div key={date.toISOString()} className={`p-3 rounded-xl ${dark ? 'bg-gray-700' : 'bg-gray-50'}`}>
+                                                <div className="flex justify-between items-start">
+                                                    <div><p className="font-bold text-sm capitalize">{date.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit' })}</p><p className="text-xs opacity-50">{s.pairs} período{s.pairs > 1 ? 's' : ''}</p></div>
+                                                    <div className="text-right"><p className="mono font-bold text-blue-600 text-sm">{fmtMin(s.workMin)}</p><p className="text-xs opacity-50">esp: {fmtMin(s.expMin)}</p>{(s.extraMin + s.extraPaidMin) > 0 && <p className="text-xs text-yellow-600 font-bold badge-extra inline-block">+{fmtMin(s.extraMin + s.extraPaidMin)}</p>}{s.bankMin > 0 && <p className="text-xs text-purple-600 font-bold">🏦{fmtMin(s.bankMin)}</p>}</div>
+                                                </div>
+                                                <p className={`mt-1 text-xs font-bold ${s.balMin >= 0 ? 'text-green-600' : 'text-red-500'}`}>Saldo: {s.balMin >= 0 ? '+' : ''}{fmtMin(s.balMin)}</p>
+                                                <div className="mt-1.5 flex flex-wrap gap-1">{s.recs.map((r, i) => <span key={i} className={`text-xs px-2 py-0.5 rounded-full mono font-bold ${r.type === 'entrada' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{r.type === 'entrada' ? '↗' : '↙'} {new Date(r.timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>)}</div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </section>}
+                            </div>;
+                        })()}
+
+                        {/* ══════ FINANCEIRO + JORNADA ══════ */}
+                        {tab === 'financeiro' && <FinanceiroJornada
+                            card={card} sub={sub} inp={inp} dark={dark} bdr={bdr}
+                            sal={sal} setSal={setSal} editSal={editSal} setEditSal={setEditSal}
+                            extraPay={extraPay}
+                            sched={sched} setSched={setSched} editSch={editSch} setEditSch={setEditSch}
+                            picked={picked} setPicked={setPicked} batch={batch} setBatch={setBatch}
+                            DAYS={DAYS} DSHORT={DSHORT} DLABEL={DLABEL}
+                            t2m={t2m} fmtMin={fmtMin}
+                            togglePick={togglePick} applyBatch={applyBatch} saveSch={saveSch}
+                            toast={toast} safeLS={safeLS}
+                        />}
+
+                        {/* ══════ PERFIL ══════ */}
+                        {tab === 'usuario' && <div className="space-y-3">
+                            <section className={`${card} rounded-2xl shadow p-4`}>
+                                <h2 className="font-bold text-sm flex items-center gap-2 mb-4"><Icon name="user" className="w-4 h-4" />👤 Perfil</h2>
+                                {editUsr ? (<div className="space-y-3">
+                                    <div><label className="text-xs font-semibold opacity-60 block mb-1">Nome</label><input type="text" value={user.name} onChange={e => setUser({ ...user, name: e.target.value })} placeholder="Seu nome" className={`w-full p-3 rounded-xl border ${inp} text-sm font-semibold`} /></div>
+                                    <div><label className="text-xs font-semibold opacity-60 block mb-1">Email</label><input type="email" value={user.email} onChange={e => setUser({ ...user, email: e.target.value })} placeholder="seu@email.com" className={`w-full p-3 rounded-xl border ${inp} text-sm font-semibold`} /></div>
+                                    <button onClick={() => { if (!user.name) { toast('⚠️ Nome é obrigatório!', 'error'); return } safeLS.set('pc_u', user); setEditUsr(false); toast('✅ Perfil salvo!', 'success') }} className="w-full py-3 bg-green-500 text-white rounded-xl font-bold active:scale-95">✓ Salvar Perfil</button>
+                                </div>) : (<div>
+                                    <div className={`p-4 rounded-xl ${sub} mb-3 flex items-center gap-3`}>
+                                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-xl font-bold">{(user.name || '?')[0].toUpperCase()}</div>
+                                        <div><p className="font-bold">{user.name}</p><p className="text-xs opacity-50">{user.email || 'Sem email'}</p></div>
+                                    </div>
+                                    <button onClick={() => setEditUsr(true)} className="px-4 py-2 bg-blue-500 text-white rounded-xl text-sm font-bold active:scale-95"><Icon name="edit" className="w-3.5 h-3.5 inline mr-1" />Editar Perfil</button>
+                                </div>)}
+                            </section>
+                            <section className={`${card} rounded-2xl shadow p-4`}>
+                                <h2 className="font-bold text-sm mb-3">📊 Estatísticas</h2>
+                                <div className={`space-y-2 ${sub} p-3 rounded-xl`}>
+                                    <p className="text-sm flex justify-between"><span className="opacity-50">Total de registros:</span><span className="mono font-bold">{records.length}</span></p>
+                                    <p className="text-sm flex justify-between"><span className="opacity-50">Dias trabalhados (mês):</span><span className="mono font-bold">{mStats.days}</span></p>
+                                    <p className="text-sm flex justify-between"><span className="opacity-50">Saldo mensal:</span><span className={`mono font-bold ${mStats.bal >= 0 ? 'text-green-600' : 'text-red-500'}`}>{mStats.bal >= 0 ? '+' : ''}{fmtMin(mStats.bal)}</span></p>
+                                </div>
+                            </section>
+                            <section className={`${card} rounded-2xl shadow p-4`}>
+                                <h2 className="font-bold text-sm mb-3 text-red-500">⚠️ Zona de Perigo</h2>
+                                <button onClick={deleteAll} className="w-full py-3 bg-red-500 text-white rounded-xl font-bold active:scale-95 flex items-center justify-center gap-2"><Icon name="trash" className="w-4 h-4" />Apagar Todos os Registros</button>
+                                <p className="text-xs opacity-40 text-center mt-2">Esta ação não pode ser desfeita</p>
+                            </section>
+                            <div className="text-center text-xs opacity-30 py-4"><p className="font-bold">PontoCerto v2.0</p><p>Controle de Jornada Inteligente</p></div>
+                        </div>}
+
+                    </main>
+                </div>
+
+                {/* ══════ MODAL EDITAR REGISTRO ══════ */}
+                {editRec && (
+                    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={e => { if (e.target === e.currentTarget) setEditRec(null); }}>
+                        <div className={`${card} rounded-2xl shadow-2xl p-5 w-full max-w-sm`}>
+                            <div className="flex items-center justify-between mb-4">
+                                <h3 className="font-bold text-base flex items-center gap-2">
+                                    <span className="w-7 h-7 bg-blue-500 rounded-lg flex items-center justify-center"><Icon name="edit" className="w-4 h-4 text-white" /></span>
+                                    Editar Registro
+                                </h3>
+                                <button onClick={() => setEditRec(null)} className={`p-1.5 rounded-lg font-bold text-lg leading-none ${dark ? 'hover:bg-gray-700' : 'hover:bg-gray-100'}`}>✕</button>
+                            </div>
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="text-xs font-semibold opacity-60 block mb-1">📅 Data e Hora</label>
+                                    <DateTimePicker value={editRec.timestamp} onChange={v => setEditRec({ ...editRec, timestamp: v })} dark={dark} bdr={bdr} />
+                                </div>
+                                <div>
+                                    <label className="text-xs font-semibold opacity-60 block mb-1">🔄 Tipo</label>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        {[{ v: 'entrada', label: '🟢 Entrada' }, { v: 'saida', label: '🔴 Saída' }].map(t => (
+                                            <button key={t.v} onClick={() => setEditRec({ ...editRec, type: t.v })}
+                                                className={`py-3 rounded-xl text-sm font-bold border-2 transition active:scale-95 ${editRec.type === t.v ? 'border-blue-500 bg-blue-50 text-blue-700' : (dark ? 'border-gray-600 bg-gray-700 text-white' : 'border-gray-200 text-gray-600')}`}>
+                                                {t.label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="text-xs font-semibold opacity-60 block mb-1">🏷️ Categoria</label>
+                                    <div className="grid grid-cols-3 gap-2">
+                                        {[{ v: 'normal', e: '⚪', l: 'Normal' }, { v: 'extra', e: '⏰', l: 'Extra' }, { v: 'banco', e: '🏦', l: 'Banco' }].map(c => (
+                                            <button key={c.v} onClick={() => setEditRec({ ...editRec, cat: c.v })}
+                                                className={`py-3 rounded-xl text-xs font-bold border-2 transition active:scale-95 ${(editRec.cat || 'normal') === c.v ? 'border-blue-500 bg-blue-50 text-blue-700' : (dark ? 'border-gray-600 bg-gray-700 text-white' : 'border-gray-200 text-gray-600')}`}>
+                                                <span className="text-lg mb-0.5 block">{c.e}</span>{c.l}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                                {editRec.manual && (
+                                    <p className={`text-xs text-center px-3 py-2 rounded-lg ${dark ? 'bg-gray-700' : 'bg-gray-100'} opacity-60`}>✏️ Registro inserido manualmente</p>
+                                )}
+                                <div className="flex gap-2 pt-1">
+                                    <button onClick={() => updateRec(editRec.id, editRec.timestamp, editRec.type, editRec.cat)}
+                                        className="flex-1 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl font-bold active:scale-95 shadow-lg shadow-green-200">
+                                        ✓ Salvar alterações
+                                    </button>
+                                    <button onClick={() => setEditRec(null)}
+                                        className="flex-1 py-3 bg-gray-400 text-white rounded-xl font-bold active:scale-95">
+                                        ✕ Cancelar
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+            </ErrorBoundary>
+        );
+    };
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+    </script>
+
+</body>
+</html>
