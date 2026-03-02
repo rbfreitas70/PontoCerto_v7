@@ -2,14 +2,10 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <meta name="theme-color" content="#4338CA">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#3B82F6">
+    <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="description" content="PontoCerto - Controle de jornada de trabalho inteligente">
-
-
-
-
-
     <title>PontoCerto</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -63,43 +59,6 @@
         .skip-link { position:absolute; top:-40px; left:0; background:#3B82F6; color:white; padding:8px; z-index:100; }
         .skip-link:focus { top:0; }
     </style>
-
-
-
-    <!-- Service Worker -->
-    <script>
-        window.addEventListener('load', () => {
-                .then(r => console.log('[PontoCerto] SW:', r.scope))
-                .catch(e => console.warn('[PontoCerto] SW:', e));
-        });
-    }
-    </script>
-
-    <script>
-            window.addEventListener('load', function () {
-                    .then(function (r) { console.log('[PontoCerto] SW:', r.scope); })
-                    .catch(function (e) { console.warn('[PontoCerto] SW erro:', e); });
-            });
-        }
-    </script>
-
-    <!-- PWA -->
-    <link rel="manifest" href="manifest.json">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="PontoCerto">
-    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-    <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32x32.png">
-    <link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16x16.png">
-    <script>
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', function () {
-                navigator.serviceWorker.register('sw.js')
-                    .then(function (r) { console.log('[PontoCerto] SW:', r.scope); })
-                    .catch(function (e) { console.warn('[PontoCerto] SW:', e); });
-            });
-        }
-    </script>
 </head>
 <body>
     <a href="#main-content" class="skip-link">Pular para conteúdo principal</a>
@@ -214,9 +173,6 @@
 
     /* ─── WeekBarChart ─── */
     const WeekBarChart = ({ calcDay, dark }) => {
-        const ref = React.useRef(null);
-        const inst = React.useRef(null);
-
         const data = useMemo(() => {
             const today = new Date();
             const dow = today.getDay();
@@ -226,137 +182,23 @@
                 const d = new Date(monday);
                 d.setDate(monday.getDate() + i);
                 const s = calcDay(d);
-                const isFuture = d > today;
-                return {
-                    day: DSHORT[DAYS[i]],
-                    normal:   isFuture ? 0 : Math.round(s.workMin / 60 * 100) / 100,
-                    extra:    isFuture ? 0 : Math.round((s.extraPaidMin + s.extraMin) / 60 * 100) / 100,
-                    banco:    isFuture ? 0 : Math.round(s.bankMin / 60 * 100) / 100,
-                    expected: Math.round(s.expMin / 60 * 100) / 100,
-                    isToday:  d.toDateString() === today.toDateString(),
-                };
+                return { day: DSHORT[DAYS[i]], worked: s.workMin, expected: s.expMin, extra: s.extraMin, isToday: d.toDateString() === today.toDateString() };
             });
         }, [calcDay]);
-
-        useEffect(() => {
-            if (!ref.current) return;
-            if (inst.current) { try { inst.current.destroy(); } catch(e) {} inst.current = null; }
-            const ctx = ref.current.getContext('2d');
-            if (!ctx) return;
-            const gridColor  = dark ? 'rgba(255,255,255,.08)' : 'rgba(0,0,0,.07)';
-            const tickColor  = dark ? 'rgba(255,255,255,.5)'  : 'rgba(0,0,0,.5)';
-            inst.current = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: data.map(d => d.day),
-                    datasets: [
-                        {
-                            label: 'Esperado',
-                            data: data.map(d => d.expected),
-                            type: 'line',
-                            borderColor: dark ? 'rgba(148,163,184,.6)' : 'rgba(100,116,139,.5)',
-                            borderWidth: 1.5,
-                            borderDash: [4, 3],
-                            pointRadius: 0,
-                            fill: false,
-                            tension: 0,
-                            order: 0,
-                        },
-                        {
-                            label: 'Normal',
-                            data: data.map(d => d.normal),
-                            backgroundColor: data.map(d => d.isToday ? 'rgba(59,130,246,.9)' : 'rgba(59,130,246,.65)'),
-                            borderRadius: 4,
-                            borderSkipped: false,
-                            stack: 'horas',
-                            order: 1,
-                        },
-                        {
-                            label: 'Extra paga',
-                            data: data.map(d => d.extra),
-                            backgroundColor: data.map(d => d.isToday ? 'rgba(245,158,11,.95)' : 'rgba(245,158,11,.75)'),
-                            borderRadius: 4,
-                            borderSkipped: false,
-                            stack: 'horas',
-                            order: 2,
-                        },
-                        {
-                            label: 'Banco',
-                            data: data.map(d => d.banco),
-                            backgroundColor: data.map(d => d.isToday ? 'rgba(139,92,246,.95)' : 'rgba(139,92,246,.7)'),
-                            borderRadius: 4,
-                            borderSkipped: false,
-                            stack: 'horas',
-                            order: 3,
-                        },
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    interaction: { mode: 'index', intersect: false },
-                    plugins: {
-                        legend: {
-                            display: true,
-                            position: 'bottom',
-                            labels: {
-                                color: tickColor,
-                                font: { size: 10, family: 'Sora, sans-serif' },
-                                boxWidth: 10,
-                                boxHeight: 10,
-                                borderRadius: 3,
-                                padding: 10,
-                                usePointStyle: true,
-                                pointStyle: 'rectRounded',
-                                filter: item => item.text !== 'Esperado',
-                            }
-                        },
-                        tooltip: {
-                            backgroundColor: dark ? '#1e293b' : '#fff',
-                            borderColor: dark ? 'rgba(255,255,255,.1)' : 'rgba(0,0,0,.1)',
-                            borderWidth: 1,
-                            titleColor: dark ? '#f1f5f9' : '#0f172a',
-                            bodyColor: dark ? '#94a3b8' : '#475569',
-                            padding: 10,
-                            callbacks: {
-                                label: ctx => {
-                                    const v = ctx.parsed.y;
-                                    if (v <= 0) return null;
-                                    const h = Math.floor(v); const m = Math.round((v - h) * 60);
-                                    return ` ${ctx.dataset.label}: ${h}h${m > 0 ? m + 'm' : ''}`;
-                                }
-                            }
-                        }
-                    },
-                    scales: {
-                        x: {
-                            stacked: true,
-                            grid: { display: false },
-                            ticks: {
-                                color: data.map(d => d.isToday ? (dark ? '#60a5fa' : '#3b82f6') : tickColor),
-                                font: (ctx) => ({ size: 11, weight: data[ctx.index]?.isToday ? '700' : '400', family: 'Sora, sans-serif' }),
-                            }
-                        },
-                        y: {
-                            stacked: true,
-                            beginAtZero: true,
-                            grid: { color: gridColor },
-                            border: { dash: [4, 3] },
-                            ticks: {
-                                color: tickColor,
-                                font: { size: 10, family: 'JetBrains Mono, monospace' },
-                                stepSize: 2,
-                                callback: v => v > 0 ? `${v}h` : '0',
-                                maxTicksLimit: 5,
-                            }
-                        }
-                    }
-                }
-            });
-            return () => { if (inst.current) { try { inst.current.destroy(); } catch(e) {} inst.current = null; } };
-        }, [data, dark]);
-
-        return <div className="h-44 w-full"><canvas ref={ref} /></div>;
+        const maxH = Math.max(...data.map(d => Math.max(d.worked, d.expected)), 1);
+        return (
+            <div className="flex items-end justify-between gap-1.5 h-24 px-1">
+                {data.map((d, i) => (
+                    <div key={i} className="flex-1 flex flex-col items-center gap-0.5">
+                        <div className="w-full flex items-end justify-center gap-0.5 h-16 relative">
+                            <div className={`w-2.5 mini-bar ${dark ? 'bg-gray-600' : 'bg-gray-200'}`} style={{ height: `${(d.expected / maxH) * 100}%` }} />
+                            <div className={`w-2.5 mini-bar ${d.extra > 0 ? 'bg-yellow-400' : d.worked >= d.expected && d.expected > 0 ? 'bg-green-400' : 'bg-blue-400'}`} style={{ height: `${(d.worked / maxH) * 100}%` }} />
+                        </div>
+                        <span className={`text-xs font-bold ${d.isToday ? 'text-blue-500' : 'opacity-40'}`}>{d.day}</span>
+                    </div>
+                ))}
+            </div>
+        );
     };
 
     /* ─── DayTimeline ─── */
@@ -655,6 +497,8 @@
         const [batch, setBatch] = useState({ start: '07:00', end: '17:00', lunch: 60 });
         const [elapsed, setElapsed] = useState(0);
         const [location, setLocation] = useState(null);
+        const [rptMonth, setRptMonth] = useState(new Date().getMonth());
+        const [rptYear, setRptYear] = useState(new Date().getFullYear());
 
         /* Load */
         useEffect(() => {
@@ -769,6 +613,24 @@
             return { tw, te, tePaid, tb, texp, days, bal: tw - texp };
         }, [calcDay]);
 
+        /* Monthly stats for selected report month */
+        const mStatsRpt = useMemo(() => {
+            const ms = new Date(rptYear, rptMonth, 1); const me = new Date(rptYear, rptMonth + 1, 0);
+            let tw = 0, te = 0, tePaid = 0, tb = 0, texp = 0, days = 0;
+            for (let d = new Date(ms); d <= me; d.setDate(d.getDate() + 1)) {
+                const s = calcDay(d);
+                if (s.recs.length) {
+                    days++;
+                    tw += s.workMin;
+                    te += s.extraMin;
+                    tePaid += s.extraPaidMin;
+                    tb += s.bankMin;
+                }
+                if (s.isWorkDay) texp += s.expMin;
+            }
+            return { tw, te, tePaid, tb, texp, days, bal: tw - texp };
+        }, [calcDay, rptMonth, rptYear]);
+
         /* Chart data */
         const chartData = useMemo(() => {
             const n = new Date(); const data = [];
@@ -878,17 +740,17 @@
 
         /* Export */
         const exportRpt = (format = 'txt') => {
-            const n = new Date();
+            const n = new Date(rptYear, rptMonth, 1);
             const mesAno = n.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
-            const filename = `pontocerto-${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}`;
+            const filename = `pontocerto-${rptYear}-${String(rptMonth+1).padStart(2,'0')}`;
             const sep = '═'.repeat(58);
             const line = '─'.repeat(58);
             const fmt = d => new Date(d).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
             const fmtDate = d => new Date(d).toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' });
 
             // Coletar dados do mês inteiro dia a dia
-            const ms = new Date(n.getFullYear(), n.getMonth(), 1);
-            const me = new Date(n.getFullYear(), n.getMonth() + 1, 0);
+            const ms = new Date(rptYear, rptMonth, 1);
+            const me = new Date(rptYear, rptMonth + 1, 0);
             const diasTrabalhados = [];
             let totalTrabMin = 0, totalExpMin = 0, totalExtraPaidMin = 0, totalBankMin = 0, totalBalMin = 0;
             for (let d = new Date(ms); d <= me; d.setDate(d.getDate() + 1)) {
@@ -1295,34 +1157,45 @@
 
                         {/* ══════ RELATÓRIOS ══════ */}
                         {tab === 'relatorios' && (() => {
-                            const n = new Date(); const ms = new Date(n.getFullYear(), n.getMonth(), 1); const me = new Date(n.getFullYear(), n.getMonth() + 1, 0);
+                            const ms = new Date(rptYear, rptMonth, 1); const me = new Date(rptYear, rptMonth + 1, 0);
                             const worked = []; for (let d = new Date(ms); d <= me; d.setDate(d.getDate() + 1)) { const s = calcDay(d); if (s.recs.length) worked.push({ date: new Date(d), s }) }
                             return <div className="space-y-3">
                                 <section className={`${card} rounded-2xl shadow p-4`}>
                                     <div className="flex items-center justify-between mb-3">
-                                        <h2 className="font-bold text-sm flex items-center gap-2"><Icon name="trend" className="w-4 h-4" />Relatório Mensal</h2>
+                                        <div>
+                                            <h2 className="font-bold text-sm flex items-center gap-2 mb-3"><Icon name="trend" className="w-4 h-4" />Relatório Mensal</h2>
+                                            <div className="flex items-center gap-2 mb-3">
+                                                <button onClick={() => setRptMonth(m => m === 0 ? 11 : m - 1)} className={`p-1.5 rounded-lg ${dark ? 'hover:bg-gray-700' : 'hover:bg-gray-100'}`}><Icon name="chevL" className="w-4 h-4" /></button>
+                                                <select value={rptMonth} onChange={e => setRptMonth(Number(e.target.value))} className={`tsel px-3 py-1.5 rounded-xl border-2 ${bdr} text-xs font-bold ${dark ? 'bg-gray-700 text-white' : 'bg-white text-gray-900'}`}>
+                                                    {['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'].map((m, i) => <option key={i} value={i}>{m}</option>)}
+                                                </select>
+                                                <button onClick={() => setRptMonth(m => m === 11 ? 0 : m + 1)} className={`p-1.5 rounded-lg ${dark ? 'hover:bg-gray-700' : 'hover:bg-gray-100'}`}><Icon name="chevR" className="w-4 h-4" /></button>
+                                                <select value={rptYear} onChange={e => setRptYear(Number(e.target.value))} className={`tsel px-3 py-1.5 rounded-xl border-2 ${bdr} text-xs font-bold ${dark ? 'bg-gray-700 text-white' : 'bg-white text-gray-900'}`}>
+                                                    {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
+                                                </select>
+                                            </div>
+                                        </div>
                                         <div className="flex gap-2">
                                             <button onClick={() => exportRpt('txt')} className="flex items-center gap-1 px-3 py-1.5 bg-blue-500 text-white rounded-xl text-xs font-bold active:scale-95"><Icon name="download" className="w-3.5 h-3.5" />TXT</button>
                                             <button onClick={() => exportRpt('csv')} className="flex items-center gap-1 px-3 py-1.5 bg-green-500 text-white rounded-xl text-xs font-bold active:scale-95"><Icon name="download" className="w-3.5 h-3.5" />CSV</button>
                                         </div>
                                     </div>
-                                    {chartData.length > 0 && <div className="mb-4"><h3 className="text-xs font-semibold opacity-60 mb-2">Últimos 7 dias</h3><HoursChart data={chartData} dark={dark} /></div>}
                                     <div className="mb-4">
-                                        <div className="flex justify-between text-xs font-semibold mb-1"><span>Progresso Mensal</span><span className="mono">{fmtMin(mStats.tw)} / {fmtMin(mStats.texp)}</span></div>
+                                        <div className="flex justify-between text-xs font-semibold mb-1"><span>Progresso do Período</span><span className="mono">{fmtMin(mStatsRpt.tw)} / {fmtMin(mStatsRpt.texp)}</span></div>
                                         <div className={`w-full h-3 rounded-full ${dark ? 'bg-gray-700' : 'bg-gray-200'} overflow-hidden`}>
-                                            <div className={`h-full rounded-full transition-all duration-500 ${mStats.bal >= 0 ? 'bg-gradient-to-r from-green-400 to-emerald-500' : 'bg-gradient-to-r from-red-400 to-rose-500'}`} style={{ width: `${Math.min(100, mStats.texp > 0 ? (mStats.tw / mStats.texp) * 100 : 0)}%` }} />
+                                            <div className={`h-full rounded-full transition-all duration-500 ${mStatsRpt.bal >= 0 ? 'bg-gradient-to-r from-green-400 to-emerald-500' : 'bg-gradient-to-r from-red-400 to-rose-500'}`} style={{ width: `${Math.min(100, mStatsRpt.texp > 0 ? (mStatsRpt.tw / mStatsRpt.texp) * 100 : 0)}%` }} />
                                         </div>
                                     </div>
                                     <div className="grid grid-cols-2 gap-2 mb-3">
-                                        <StatCard label="Trabalhado" value={fmtMin(mStats.tw)} gradient="from-blue-500 to-blue-600" />
-                                        <StatCard label="Esperado" value={fmtMin(mStats.texp)} gradient="from-green-500 to-green-600" />
-                                        <StatCard label="Extra paga" value={fmtMin(mStats.te + mStats.tePaid)} gradient="from-amber-500 to-yellow-500" />
-                                        <StatCard label="Banco 🏦" value={fmtMin(mStats.tb)} gradient="from-purple-500 to-violet-600" />
+                                        <StatCard label="Trabalhado" value={fmtMin(mStatsRpt.tw)} gradient="from-blue-500 to-blue-600" />
+                                        <StatCard label="Esperado" value={fmtMin(mStatsRpt.texp)} gradient="from-green-500 to-green-600" />
+                                        <StatCard label="Extra paga" value={fmtMin(mStatsRpt.te + mStatsRpt.tePaid)} gradient="from-amber-500 to-yellow-500" />
+                                        <StatCard label="Banco 🏦" value={fmtMin(mStatsRpt.tb)} gradient="from-purple-500 to-violet-600" />
                                     </div>
-                                    <div className={`p-4 rounded-2xl text-center ${mStats.bal >= 0 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                                        <p className="mono text-3xl font-extrabold count-anim">{mStats.bal >= 0 ? '+' : ''}{fmtMin(mStats.bal)}</p>
-                                        <p className="text-sm font-bold mt-1">{mStats.bal >= 0 ? '✅ Saldo Positivo' : '⚠️ Saldo Negativo'}</p>
-                                        <p className="text-xs opacity-60 mt-0.5">{mStats.days} dias trabalhados</p>
+                                    <div className={`p-4 rounded-2xl text-center ${mStatsRpt.bal >= 0 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                        <p className="mono text-3xl font-extrabold count-anim">{mStatsRpt.bal >= 0 ? '+' : ''}{fmtMin(mStatsRpt.bal)}</p>
+                                        <p className="text-sm font-bold mt-1">{mStatsRpt.bal >= 0 ? '✅ Saldo Positivo' : '⚠️ Saldo Negativo'}</p>
+                                        <p className="text-xs opacity-60 mt-0.5">{mStatsRpt.days} dias trabalhados</p>
                                     </div>
                                 </section>
                                 {worked.length > 0 && <section className={`${card} rounded-2xl shadow p-4`}>
@@ -1453,6 +1326,5 @@
 
     ReactDOM.createRoot(document.getElementById('root')).render(<App />);
     </script>
-
 </body>
 </html>
